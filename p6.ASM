@@ -25,6 +25,11 @@ ordenamientos   DB 'Escoja una opcion: ', 10, 13, '1) BubbleSort', 10, 13, '2) Q
 velocidadMes    DB 10, 13, 'Ingrese una medida de velocidad (0-9)', 10, 13, '$'
 direccionMes    DB 10, 13, 'Elija una de las siguientes opciones: ', 10, 13, '1) Descendente', 10, 13, '2) Ascendente', 10, 13, '$'
 reportName      DB 'reporte.xml', 0
+bubbleHeader    DB 'Ordenamiento Burbuja'
+quickHeader     DB 'Ordenamiento Rapido'
+shellHeader     DB 'Ordenamiento Shell'
+speedHeader     DB 'Velocidad: '
+timeHeader      DB 'Tiempo: 00:00'
 
 ; cadenas para el reporte
 bloque0         DB '<Arqui>', 10, 13, 9, '<Encabezado>', 10, 13, 9, 9, '<Universidad>Universidad de San Carlos de Guatemala</Universidad>', '$'
@@ -68,6 +73,7 @@ day             DB '00'
 hour            DB '00'
 minutes         DB '00'
 seconds         DB '00'
+miliSeconds     DB '00'
 address         DB 20 DUP (0)
 fileBuffer      DB 1024 DUP (0)
 handle          DW 0
@@ -91,12 +97,16 @@ right           DB 0
 from            DB 0
 to              DB 0
 pivot           DB 0
-doflag          DB 0
+x1              DW 0
+y1              DW 0
+x2              DW 0
+y2              DW 0
 
                 CODESEG
 Start:          mov     ax, @data
                 mov     ds, ax 
                 mov     es, ax
+                call DrawFrame
 
 Menu:           mov ah, 9
                 mov dx, offset menuLine
@@ -443,6 +453,12 @@ PROC            GetTime
                 add ax, '00'
                 mov [seconds], al
                 mov [seconds + 1], ah
+                xor ah, ah
+                mov al, dl
+                div bl
+                add ax, '00'
+                mov [miliSeconds], al
+                mov [miliSeconds + 1], ah
                 ret
 ENDP            GetTime
 
@@ -750,4 +766,116 @@ TwoDigits:      push ax
                 ret
 ENDP            ToString
 
+PROC            DrawFrame
+                mov ah, 00h
+                mov al, 13h
+                int 10h
+                mov ah, 0bh
+                mov bx, 0000h
+                int 10h
+                mov [x1], 10
+                mov [y1], 40
+                mov [y2], 40
+                mov [x2], 310          
+                call DrawLine
+                mov [x1], 10
+                mov [y1], 180
+                mov[x2], 310
+                mov [y2], 180
+                call DrawLine
+                mov [x1], 10
+                mov [x2], 10
+                mov [y1], 40
+                mov [y2], 180
+                call DrawLine
+                mov [x1], 310
+                mov [x2], 310
+                mov [y1], 40
+                mov [y2], 180
+                call DrawLine
+                call DrawInfo
+                call DrawBars
+                mov ah, 10h
+                int 16h
+                ret
+ENDP            DrawFrame
+
+PROC            DrawLine
+                mov dx, [y1]
+                mov cx, [x1]
+                cmp cx, [x2]
+                je Vertical
+Horizontal:     mov ah, 0Ch
+                mov al, 07h
+                int 10h
+                inc cx
+                cmp cx, [x2]
+                jne Horizontal
+                mov cx, 0
+                mov dx, 0
+                ret
+Vertical:       mov ah, 0Ch
+                mov al, 07h
+                int 10h
+                inc dx
+                cmp dx, [y2]
+                jne Vertical
+                mov cx, 0
+                mov dx, 0
+                ret
+ENDP            DrawLine
+
+PROC            DrawInfo
+                cmp [sortType], 1
+                je DrawBubbleHead
+                cmp [sortType], 2
+                je DrawQuickHead
+                mov bp, offset shellHeader
+                mov cx, 18
+                jmp DrawTime
+DrawBubbleHead: mov bp, offset bubbleHeader
+                mov cx, 20
+                jmp DrawTime
+DrawQuickHead:  mov bp, offset quickHeader
+                mov cx, 19
+DrawTime:       mov ah, 19
+                mov al, 01h
+                mov dh, 1
+                mov dl, 2
+                mov bl, 07h
+                int 10h
+                mov bp, offset timeHeader
+                mov cx, 13
+                mov ah, 19
+                mov al, 01h
+                mov dh, 1
+                mov dl, 24
+                mov bl, 07h
+                int 10h
+DrawSpeed:      mov bp, offset speedHeader
+                mov cx, 11
+                mov ah, 19
+                mov al, 01h
+                mov dh, 3
+                mov dl, 2
+                mov bl, 07h
+                int 10h
+                ret
+ENDP            DrawInfo
+
+PROC            DrawBars
+                mov cx, 00h
+                mov bx, offset sortedArray
+Counting:       cmp [bx], 00h
+                je DividirEspacio
+                cmp cx, 25
+                je DividirEspacio
+                inc bx
+                inc cx
+                jmp Counting
+DividirEspacio: mov ax, 300
+                div cx
+                sub al, 05h
+                ret
+ENDP            DrawBars
                 END Start

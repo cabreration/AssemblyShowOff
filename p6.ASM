@@ -3,7 +3,7 @@
                 IDEAL
 
                 MODEL small
-                STACK 900h
+                STACK 0F00h
 
                 DATASEG
 
@@ -30,6 +30,7 @@ quickHeader     DB 'Ordenamiento Rapido'
 shellHeader     DB 'Ordenamiento Shell'
 speedHeader     DB 'Velocidad: '
 timeHeader      DB 'Tiempo: 00:00'
+impresionExit   DB 10, 13, '===== El reporte ha sido generado con exito =====' , 10, 13, '$'
 
 ; cadenas para el reporte
 bloque0         DB '<Arqui>', 10, 13, 9, '<Encabezado>', 10, 13, 9, 9, '<Universidad>Universidad de San Carlos de Guatemala</Universidad>', '$'
@@ -80,11 +81,11 @@ handle          DW 0
 fileState       DB 0                        ; 1 es error de extension, 2 es de que no existe y 3 es que funciona bien
 oneByte         DB 0
 array           DB 25 DUP (0)
-;sortedArray     DB 25 DUP (0)
-sortedArray     DB 43, 80, 25, 58, 77, 88, 87, 80, 91, 1, 0
+sortedArray     DB 25 DUP (0)
+;sortedArray     DB 43, 80, 25, 58, 77, 88, 87, 80, 91, 1, 0
 number          DB '00$'
 numberValue     DB 0
-mult10          DW 0Ah
+mult10          DB 0Ah
 sortType        DB 0                        ; 1 es bubble, 2 es quick, 3 es shell
 speed           DB 0                        ; el rango es de 0 a 9
 orderMode       DB 0                        ; 1 es descendente, 2 es ascendente
@@ -102,7 +103,7 @@ x1              DW 0
 y1              DW 0
 x2              DW 0
 y2              DW 0
-hertz           DW 0
+hertz           DB 0
 grosor          DB 0
 largest         DB 0
 barraActual     DB 0
@@ -117,7 +118,6 @@ widthCounter    DB 0
 Start:          mov     ax, @data
                 mov     ds, ax 
                 mov     es, ax
-                call DrawFrame
 
 Menu:           mov ah, 9
                 mov dx, offset menuLine
@@ -169,7 +169,11 @@ DUSTF:          mov ah, 09h
                 int 21h
                 jmp Cargar
                 
-GenerarRep:     jmp Menu
+GenerarRep:     call GenerateReport
+                mov dx, offset impresionExit
+                mov ah, 09h
+                int 21h
+                jmp Menu
 
 Salir:          mov ah, 9
                 mov dx, offset byeMes
@@ -239,10 +243,10 @@ Opciones3:      mov ah, 09h
                 jmp Opciones3
 Desc:           mov [orderMode], 01h
                 call Sorting
-                jmp Salir
+                jmp Menu
 Asc:            mov [orderMode], 02h
                 call Sorting
-                jmp Salir
+                jmp Menu
              
 
 PROC            ValidateAddress
@@ -499,10 +503,17 @@ Suspenso:       mov ah, 10h
                 cmp [sortType], 2
                 je Nesquick
                 call ShellSorting
-                ret
+                jmp Validate
 Bub:            call BubbleSorting
-                ret
+                jmp Validate
 Nesquick:       call PrepareQuick
+Validate:       mov ah, 10h
+                int 16h
+                cmp al, 1Bh
+                jne Validate
+                mov ah, 00h
+                mov al, 03h
+                int 10h
                 ret
 ENDP            Sorting
 
@@ -513,11 +524,15 @@ FirstIteB:      mov di, 00h
                 je StopBSorting
                 cmp [sortedArray + si], 00h
                 je StopBSorting
-                ; aqui debe sonar [sortedArray + si]
+                mov ah, [sortedArray + si]
+                mov [hertz], ah
+                call Sound
 SecondIteB:     cmp di, si
                 jae NextIte
                 mov al, [sortedArray + si]
-                ; aqui debe sonar [sortedArray + di]
+                mov ah, [sortedArray + di]
+                mov [hertz], ah
+                call Sound
                 cmp [orderMode], 01h
                 je DesCondition
                 cmp al, [sortedArray + di]
@@ -529,8 +544,7 @@ DesCondition:   cmp al, [sortedArray + di]
 ExchangeValues: mov ah, [sortedArray + di]
                 mov [sortedArray + si], ah
                 mov [sortedArray + di], al
-                call Delay
-                ;me parece que aqui voy a tener que pintar
+                call DrawFrame
 AvanzarB:       inc di
                 jmp SecondIteB
 NextIte:        inc si
@@ -778,11 +792,11 @@ TwoDigits:      push ax
                 push dx
                 mov ah, 00h
                 mov al, [numberValue]
-                mov cx, [mult10]
-                div cx
+                mov cl, [mult10]
+                div cl
                 mov [printNumber], al
                 add [printNumber], 30h
-                mov [printNumber + 1], dl
+                mov [printNumber + 1], ah
                 add [printNumber + 1], 30h
                 pop dx
                 pop cx
@@ -800,29 +814,28 @@ PROC            DrawFrame
                 mov bx, 0000h
                 int 10h
                 mov [x1], 10
-                mov [y1], 40
-                mov [y2], 40
+                mov [y1], 30
+                mov [y2], 30
                 mov [x2], 311          
                 call DrawLine
                 mov [x1], 10
-                mov [y1], 182
+                mov [y1], 172
                 mov[x2], 311
-                mov [y2], 182
+                mov [y2], 172
                 call DrawLine
                 mov [x1], 10
                 mov [x2], 10
-                mov [y1], 40
-                mov [y2], 182
+                mov [y1], 30
+                mov [y2], 172
                 call DrawLine
                 mov [x1], 310
                 mov [x2], 310
-                mov [y1], 40
-                mov [y2], 182
+                mov [y1], 30
+                mov [y2], 172
                 call DrawLine
                 call DrawInfo
                 call DrawBars
-                mov ah, 10h
-                int 16h
+                call DrawNumbers
                 pop bx
                 pop ax
                 ret
@@ -896,8 +909,19 @@ DrawSpeed:      mov bp, offset speedHeader
                 mov cx, 11
                 mov ah, 19
                 mov al, 01h
-                mov dh, 3
+                mov dh, 2
                 mov dl, 2
+                mov bl, 07h
+                int 10h
+                mov bh, [speed]
+                mov [numberValue], bh
+                call ToString
+                mov bp, offset printNumber
+                mov cx, 2
+                mov ah, 19
+                mov al, 01h
+                mov dh, 2
+                mov dl, 15
                 mov bl, 07h
                 int 10h
                 pop dx
@@ -938,7 +962,7 @@ PaintIteration: cmp si, 19h
                 call DrawSingleBar
                 inc si
                 jmp PaintIteration
-DonePainting:   push si
+DonePainting:   pop si
                 pop dx
                 pop cx
                 pop bx
@@ -980,10 +1004,10 @@ DefineHeight:   mov al, [barraActual]
                 mov [barraActual], al
                 mov [heightCounter], 00h
                 mov [widthCounter], 00h
-                mov cx, 14
-                mov dx, 181d
+                ;mov cx, 14
+                ;mov dx, 171d
                 mov cx, [xCoordinate]
-                mov dx, 181d
+                mov dx, 171d
 FillBar:        mov bh, [barraActual]
                 cmp bh, [heightCounter]
                 je MoveX
@@ -996,7 +1020,7 @@ FillBar:        mov bh, [barraActual]
 MoveX:          inc [widthCounter]
                 inc cx
                 inc [xCoordinate]
-                mov dx, 181d
+                mov dx, 171d
                 mov [heightCounter], 00h
                 mov bh, [widthCounter]
                 cmp bh, [grosor]
@@ -1069,5 +1093,61 @@ LargFound:      pop ax
                 pop si
                 ret
 ENDP            FindLargest
+
+PROC            DrawNumbers
+                push si
+                push ax
+                mov si, 00h
+                mov dh, 22
+                mov dl, 01h
+Ciclo:          cmp si, 25
+                je NumbersDone
+                cmp [sortedArray + si], 00h
+                je NumbersDone
+                mov ah, [sortedArray + si]
+                mov [numberValue], ah
+                call toString
+                cmp [numberValue], 20
+                jbe RedNumber
+                cmp [numberValue], 40
+                jbe BlueNumber
+                cmp [numberValue], 60
+                jbe YellowNumber
+                cmp [numberValue], 80
+                jbe GreenNumber
+                mov [colorActual], 07h
+                jmp PaintNumber
+RedNumber:      mov [colorActual], 04h
+                jmp PaintNumber
+BlueNumber:     mov [colorActual], 01h
+                jmp PaintNumber
+YellowNumber:   mov [colorActual], 0Eh
+                jmp PaintNumber
+GreenNumber:    mov [colorActual], 02h
+                jmp PaintNumber
+PaintNumber:    ;a partir de aqui lo pinto
+                mov bp, offset printNumber
+                mov cx, 2
+                mov ah, 19
+                mov al, 01h
+                mov bl, [colorActual]
+                int 10h
+                inc si
+                add dl, 3
+                cmp si, 13
+                je GoBellow
+                jmp Ciclo
+GoBellow:       inc dh
+                mov dl, 02h
+                jmp Ciclo
+NumbersDone:    pop ax
+                pop si
+                mov [colorActual], 00h
+                ret
+ENDP            DrawNumbers
+
+PROC            GenerateReport
+                ret
+ENDP            GenerateReport
 
                 END Start

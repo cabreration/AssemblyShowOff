@@ -80,7 +80,8 @@ handle          DW 0
 fileState       DB 0                        ; 1 es error de extension, 2 es de que no existe y 3 es que funciona bien
 oneByte         DB 0
 array           DB 25 DUP (0)
-sortedArray     DB 25 DUP (0)
+;sortedArray     DB 25 DUP (0)
+sortedArray     DB 43, 80, 25, 58, 77, 88, 87, 80, 91, 1, 0
 number          DB '00$'
 numberValue     DB 0
 mult10          DW 0Ah
@@ -101,6 +102,16 @@ x1              DW 0
 y1              DW 0
 x2              DW 0
 y2              DW 0
+hertz           DW 0
+grosor          DB 0
+largest         DB 0
+barraActual     DB 0
+colorActual     DB 0
+mult100         DB 64h
+mult140         DB 140d
+xCoordinate     DW 0
+heightCounter   DB 0
+widthCounter    DB 0
 
                 CODESEG
 Start:          mov     ax, @data
@@ -158,7 +169,7 @@ DUSTF:          mov ah, 09h
                 int 21h
                 jmp Cargar
                 
-GenerarRep:
+GenerarRep:     jmp Menu
 
 Salir:          mov ah, 9
                 mov dx, offset byeMes
@@ -478,7 +489,12 @@ MoveArray:      mov dl, [byte bx]
                 cmp si, 19h
                 je SelectSort
                 jmp MoveArray
-SelectSort:     cmp [sortType], 1
+SelectSort:     call DrawFrame
+Suspenso:       mov ah, 10h
+                int 16h
+                cmp al, 20h
+                jne Suspenso
+                cmp [sortType], 1
                 je Bub
                 cmp [sortType], 2
                 je Nesquick
@@ -497,9 +513,11 @@ FirstIteB:      mov di, 00h
                 je StopBSorting
                 cmp [sortedArray + si], 00h
                 je StopBSorting
+                ; aqui debe sonar [sortedArray + si]
 SecondIteB:     cmp di, si
                 jae NextIte
                 mov al, [sortedArray + si]
+                ; aqui debe sonar [sortedArray + di]
                 cmp [orderMode], 01h
                 je DesCondition
                 cmp al, [sortedArray + di]
@@ -511,6 +529,8 @@ DesCondition:   cmp al, [sortedArray + di]
 ExchangeValues: mov ah, [sortedArray + di]
                 mov [sortedArray + si], ah
                 mov [sortedArray + di], al
+                call Delay
+                ;me parece que aqui voy a tener que pintar
 AvanzarB:       inc di
                 jmp SecondIteB
 NextIte:        inc si
@@ -680,54 +700,56 @@ FinishShell:    ret
 ENDP            ShellSorting
 
 PROC            Delay
+                push si
+                push di
                 ; arreglar los valores de m y r
                 cmp [speed], 0
                 ja Speed1
-                mov [mSpeed], 01h
-                mov [rSpeed], 01h
+                mov [mSpeed], 500d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed1:         cmp [speed], 1
                 ja Speed2
-                mov [mSpeed], 02h
-                mov [rSpeed], 02h
+                mov [mSpeed], 450d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed2:         cmp [speed], 2
                 ja Speed3
-                mov [mSpeed], 03h
-                mov [rSpeed], 03h
+                mov [mSpeed], 400d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed3:         cmp [speed], 3
                 ja Speed4
-                mov [mSpeed], 03h
-                mov [rSpeed], 03h
+                mov [mSpeed], 350d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed4:         cmp [speed], 4
                 ja Speed5
-                mov [mSpeed], 04h
-                mov [rSpeed], 04h
+                mov [mSpeed], 300d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed5:         cmp [speed], 5
                 ja Speed6
-                mov [mSpeed], 05h
-                mov [rSpeed], 05h
+                mov [mSpeed], 250d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed6:         cmp [speed], 6
                 ja Speed7
-                mov [mSpeed], 07h
-                mov [rSpeed], 07h
+                mov [mSpeed], 200d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed7:         cmp [speed], 7
                 ja Speed8
-                mov [mSpeed], 07h
-                mov [rSpeed], 07h
+                mov [mSpeed], 150d
+                mov [rSpeed], 2710h
                 jmp Demorar
 Speed8:         cmp [speed], 8
                 ja Speed9
-                mov [mSpeed], 08h
-                mov [rSpeed], 08h
+                mov [mSpeed], 100d
+                mov [rSpeed], 2710h
                 jmp Demorar
-Speed9:         mov [mSpeed], 09h
-                mov [rSpeed], 09h
+Speed9:         mov [mSpeed], 050d
+                mov [rSpeed], 2710h
 Demorar:        mov di, [mSpeed]
 TresSpeed:      dec di
                 jz UnoSpeed
@@ -735,7 +757,9 @@ TresSpeed:      dec di
 DosSpeed:       dec si
                 jnz DosSpeed
                 jmp TresSpeed
-UnoSpeed:            ret
+UnoSpeed:       pop di
+                pop si
+                ret
 ENDP            Delay
 
 PROC            ToString
@@ -767,6 +791,8 @@ TwoDigits:      push ax
 ENDP            ToString
 
 PROC            DrawFrame
+                push ax
+                push bx
                 mov ah, 00h
                 mov al, 13h
                 int 10h
@@ -776,31 +802,37 @@ PROC            DrawFrame
                 mov [x1], 10
                 mov [y1], 40
                 mov [y2], 40
-                mov [x2], 310          
+                mov [x2], 311          
                 call DrawLine
                 mov [x1], 10
-                mov [y1], 180
-                mov[x2], 310
-                mov [y2], 180
+                mov [y1], 182
+                mov[x2], 311
+                mov [y2], 182
                 call DrawLine
                 mov [x1], 10
                 mov [x2], 10
                 mov [y1], 40
-                mov [y2], 180
+                mov [y2], 182
                 call DrawLine
                 mov [x1], 310
                 mov [x2], 310
                 mov [y1], 40
-                mov [y2], 180
+                mov [y2], 182
                 call DrawLine
                 call DrawInfo
                 call DrawBars
                 mov ah, 10h
                 int 16h
+                pop bx
+                pop ax
                 ret
 ENDP            DrawFrame
 
 PROC            DrawLine
+                push ax
+                push bx
+                push cx
+                push dx
                 mov dx, [y1]
                 mov cx, [x1]
                 cmp cx, [x2]
@@ -813,7 +845,7 @@ Horizontal:     mov ah, 0Ch
                 jne Horizontal
                 mov cx, 0
                 mov dx, 0
-                ret
+                jmp EndLine
 Vertical:       mov ah, 0Ch
                 mov al, 07h
                 int 10h
@@ -822,10 +854,18 @@ Vertical:       mov ah, 0Ch
                 jne Vertical
                 mov cx, 0
                 mov dx, 0
+EndLine:        pop dx
+                pop cx
+                pop bx
+                pop ax
                 ret
 ENDP            DrawLine
 
 PROC            DrawInfo
+                push ax
+                push bx
+                push cx
+                push dx
                 cmp [sortType], 1
                 je DrawBubbleHead
                 cmp [sortType], 2
@@ -860,22 +900,174 @@ DrawSpeed:      mov bp, offset speedHeader
                 mov dl, 2
                 mov bl, 07h
                 int 10h
+                pop dx
+                pop cx
+                pop bx
+                pop ax
                 ret
 ENDP            DrawInfo
 
 PROC            DrawBars
-                mov cx, 00h
+                push ax
+                push bx
+                push cx
+                push dx
+                push si
+                mov ch, 00h
                 mov bx, offset sortedArray
-Counting:       cmp [bx], 00h
+Counting:       cmp [byte bx], 00h
                 je DividirEspacio
-                cmp cx, 25
+                cmp ch, 25
                 je DividirEspacio
                 inc bx
-                inc cx
+                inc ch
                 jmp Counting
 DividirEspacio: mov ax, 300
-                div cx
+                div ch
                 sub al, 05h
+                mov [grosor], al
+                call FindLargest
+                mov si, 00h
+                mov [xCoordinate], 14d
+PaintIteration: cmp si, 19h
+                je DonePainting
+                cmp [sortedArray + si], 00h
+                je DonePainting
+                mov al, [sortedArray + si]
+                mov [barraActual], al
+                call DrawSingleBar
+                inc si
+                jmp PaintIteration
+DonePainting:   push si
+                pop dx
+                pop cx
+                pop bx
+                pop ax
                 ret
 ENDP            DrawBars
+
+PROC            DrawSingleBar
+                push ax
+                push bx
+                push cx
+                push dx
+                push si
+                cmp [barraActual], 20
+                jbe Red
+                cmp [barraActual], 40
+                jbe Blue
+                cmp [barraActual], 60
+                jbe Yellow
+                cmp [barraActual], 80
+                jbe Green
+                mov [colorActual], 07h
+                jmp DefineHeight
+Red:            mov [colorActual], 04h
+                jmp DefineHeight
+Blue:           mov [colorActual], 01h
+                jmp DefineHeight
+Yellow:         mov [colorActual], 0Eh
+                jmp DefineHeight
+Green:          mov [colorActual], 02h
+DefineHeight:   mov al, [barraActual]
+                mul [mult100]
+                mov ch, [largest]
+                div ch 
+                mov [barraActual], al
+                mul [mult140]
+                mov ch, [mult100]
+                div ch
+                mov [barraActual], al
+                mov [heightCounter], 00h
+                mov [widthCounter], 00h
+                mov cx, 14
+                mov dx, 181d
+                mov cx, [xCoordinate]
+                mov dx, 181d
+FillBar:        mov bh, [barraActual]
+                cmp bh, [heightCounter]
+                je MoveX
+                mov ah, 0Ch
+                mov al, [colorActual]
+                int 10h
+                dec dx
+                inc [heightCounter]
+                jmp FillBar
+MoveX:          inc [widthCounter]
+                inc cx
+                inc [xCoordinate]
+                mov dx, 181d
+                mov [heightCounter], 00h
+                mov bh, [widthCounter]
+                cmp bh, [grosor]
+                jne FillBar
+                add [xCoordinate], 05h
+                pop si
+                pop dx
+                pop cx
+                pop bx
+                pop ax
+                ret
+ENDP            DrawSingleBar
+
+PROC            Sound
+                push ax
+                mov al, 86h
+                out 43h, al
+
+                cmp [hertz], 20
+                jbe Cien
+                cmp [hertz], 40
+                jbe TresCientos
+                cmp [hertz], 60
+                jbe Quinientos
+                cmp [hertz], 80
+                jbe SeteCientos
+                mov ax, (1193180 / 900)
+                jmp Yell
+Cien:           mov ax, (1193180 / 100)
+                jmp Yell
+TresCientos:    mov ax, (1193180 / 300)
+                jmp Yell
+Quinientos:     mov ax, (1193180 / 500)
+                jmp Yell
+SeteCientos:    mov ax, (1193180 / 700)
+
+Yell:           out 42h, al
+                mov al, ah
+                out 42h, al 
+                in al, 61h
+                or al, 00000011b
+                out 61h, al
+                Call Delay
+                ; apagar la bocina
+                in al, 61h
+                and al, 11111100b
+                out 61h, al
+                pop ax
+                ret
+ENDP            Sound
+
+PROC            FindLargest
+                push si
+                push ax
+                mov [largest], 00h
+                mov si, 00h
+Larg:           cmp si, 19h
+                je LargFound
+                cmp [sortedArray + si], 00h
+                je LargFound
+                mov ah, [largest]
+                cmp [sortedArray + si], ah
+                ja PowerUp
+                jmp AlwaysLarg
+PowerUp:        mov ah, [sortedArray + si]
+                mov [largest], ah
+AlwaysLarg:     inc si
+                jmp Larg
+LargFound:      pop ax
+                pop si
+                ret
+ENDP            FindLargest
+
                 END Start

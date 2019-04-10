@@ -31,10 +31,14 @@ shellHeader     DB 'Ordenamiento Shell'
 speedHeader     DB 'Velocidad: '
 timeHeader      DB 'Tiempo: 00:00'
 impresionExit   DB 10, 13, '===== El reporte ha sido generado con exito =====' , 10, 13, '$'
+impresionError  DB 10, 13, '===== El reporte no fue generado con exito =====', 10, 13, '$'
+ascending       DB 'Ascendente', '$'
+descending      DB 'Descendente', '$'
+badRange        DB 10, 13, '== Tiene menos de 10 elementos en el archivo a cargar, deben ser al menos 10', 10, 13, '$' 
 
 ; cadenas para el reporte
 bloque0         DB '<Arqui>', 10, 13, 9, '<Encabezado>', 10, 13, 9, 9, '<Universidad>Universidad de San Carlos de Guatemala</Universidad>', '$'
-bloque1         DB 10, 13, 9, 9, '<Facultad>Facultad de Ingenieria</Facultad', 10, 13, 9, 9, '<Escuela>Ciencias y Sistemas</Escuela>', '$'
+bloque1         DB 10, 13, 9, 9, '<Facultad>Facultad de Ingenieria</Facultad>', 10, 13, 9, 9, '<Escuela>Ciencias y Sistemas</Escuela>', '$'
 bloque2         DB 10, 13, 9, 9, '<Curso>', 10, 13, 9, 9, 9, '<Nombre>Arquitectura de Computadores y Ensambladores 1</Nombre>', '$'
 bloque3         DB 10, 13, 9, 9, 9, '<Seccion>A</Seccion>', 10, 13, 9, 9, '</Curso>', 10, 13, 9, 9, '<Ciclo>Primer Semestre 2019</Ciclo>', '$'
 bloque4         DB 10, 13, 9, 9, '<Fecha>', 10, 13, 9, 9, 9, '<Dia>', '$'
@@ -45,25 +49,26 @@ bloque8         DB '</Hora>', 10, 13, 9, 9, 9, '<Minutos>', '$'
 bloque9         DB '</Minutos>', 10, 13, 9, 9, 9, '<Segundos>', '$'
 bloque10        DB '</Segundos>', 10, 13, 9, 9, '</Hora>', 10, 13, 9, 9, '<Alumno>', 10, 13, 9, 9, 9, '<Nombre>Javier Alberto Cabrera Puente</Nombre>', '$'
 bloque11        DB 10, 13, 9, 9, 9, '<Carnet>201403905</Carnet>', 10, 13, 9, 9, '</Alumno>', 10, 13, 9, '</Encabezado>', '$'
-bloque12        DB 10, 13, 9, '<Resultados>', 10, 13, 9, 9, '<Tipo>', '$'
-bloque13        DB '</Tipo>', 10, 13, 9, 9, '<Lista_Entrada>', '$'
-bloque14        DB '</Lista_Entrada>', 10, 13, 9, 9, '<Lista_Ordenada>', '$'
-bloque15        DB '</Lista_Ordenada>', 10, 13, 9, 9, '<Ordenamiento_BubbleSort>', 10, 13, 9, 9, 9, '<Velocidad>', '$'
-bloque16        DB '</Velocidad>', 10, 13, 9, 9, 9, '<Tiempo>', 10, 13, 9, 9, 9, 9, '<Minutos>', '$'
-bloque17        DB '</Minutos>', 10, 13, 9, 9, 9, 9, '<Segundos>', '$'
-bloque18        DB '</Segundos>', 10, 13, 9, 9, 9, 9, '<Milisegundos>', '$'
-bloque19        DB '</Milisegundos>', 10, 13, 9, 9, 9, '</Tiempo>', 10, 13, 9, 9, '</Ordenamiento_BubbleSort>', '$'
+bloque12        DB 10, 13, 9, '<Resultados>', 10, 13, 9, 9, '<Lista_Entrada>', '$'
+bloque13        DB '</Lista_Entrada>', 10, 13, 9, 9, '<Lista_Ordenada>', '$'
+bloque14        DB '</Lista_Ordenada>', 10, 13, 9, 9, '<Ordenamiento_BubbleSort>', 10, 13, 9, 9, 9, '<Velocidad>', '$'
+bloque15        DB '</Velocidad>', 10, 13, 9, 9, 9, '<Tiempo>', 10, 13, 9, 9, 9, 9, '<Minutos>', '$'
+bloque16        DB '</Minutos>', 10, 13, 9, 9, 9, 9, '<Segundos>', '$'
+bloque17        DB '</Segundos>', 10, 13, 9, 9, 9, 9, '<Milisegundos>', '$'
+bloque18        DB '</Milisegundos>', 10, 13, 9, 9, 9, '</Tiempo>', 10, 13, 9, 9, 9, '<Tipo>', '$'
+bloque19        DB '</Tipo>', 10, 13, 9, 9, '</Ordenamiento_BubbleSort>', '$'
 bloque20        DB 10, 13, 9, 9, '<Ordenamiento_QuickSort>', 10, 13, 9, 9, 9, '<Velocidad>', '$'
 bloque21        DB '</Velocidad>', 10, 13, 9, 9, 9, '<Tiempo>', 10, 13, 9, 9, 9, 9, '<Minutos>', '$'
 bloque22        DB '</Minutos>', 10, 13, 9, 9, 9, 9, '<Segundos>', '$'
 bloque23        DB '</Segundos>', 10, 13, 9, 9, 9, 9, '<Milisegundos>', '$'
-bloque24        DB '</Milisegundos>', 10, 13, 9, 9, 9, '</Tiempo>', 10, 13, 9, 9, '</Ordenamiento_QuickSort>', '$'
-bloque25        DB 10, 13, 9, 9, '<Ordenamiento_ShellSort>', 10, 13, 9, 9, 9, '<Velocidad>', '$'
-bloque26        DB '</Velocidad>', 10, 13, 9, 9, 9, '<Tiempo>', 10, 13, 9, 9, 9, 9, '<Minutos>', '$'
-bloque27        DB '</Minutos>', 10, 13, 9, 9, 9, 9, '<Segundos>', '$'
-bloque28        DB '</Segundos>', 10, 13, 9, 9, 9, 9, '<Milisegundos>', '$'
-bloque29        DB '</Milisegundos>', 10, 13, 9, 9, 9, '</Tiempo>', 10, 13, 9, 9, '</Ordenamiento_ShellSort>', '$'
-bloque30        DB 10, 13, 9, '</Resultados>', 10, 13, '</Arqui>', '$'
+bloque24        DB '</Milisegundos>', 10, 13, 9, 9, 9, '</Tiempo>', 10, 13, 9, 9, 9, '<Tipo>', '$'
+bloque25        DB '</Tipo>', 10, 13, 9, 9, '</Ordenamiento_QuickSort>', '$'
+bloque26        DB 10, 13, 9, 9, '<Ordenamiento_ShellSort>', 10, 13, 9, 9, 9, '<Velocidad>', '$'
+bloque27        DB '</Velocidad>', 10, 13, 9, 9, 9, '<Tiempo>', 10, 13, 9, 9, 9, 9, '<Minutos>', '$'
+bloque28        DB '</Minutos>', 10, 13, 9, 9, 9, 9, '<Segundos>', '$'
+bloque29        DB '</Segundos>', 10, 13, 9, 9, 9, 9, '<Milisegundos>', '$'
+bloque30        DB '</Milisegundos>', 10, 13, 9, 9, 9, '</Tiempo>', 10, 13, 9, 9, 9, '<Tipo>', '$'
+bloque31        DB '</Tipo>', 10, 13, 9, 9, '</Ordenamiento_ShellSort>', 10, 13, 9, '</Resultados>', 10, 13, '</Arqui>', '$'
 
 
 ; variables
@@ -113,6 +118,12 @@ mult140         DB 140d
 xCoordinate     DW 0
 heightCounter   DB 0
 widthCounter    DB 0
+bubbleSpeed     DB 0
+quickSpeed      DB 0
+shellSpeed      DB 0
+bubbleDir       DB 0
+quickDir        DB 0
+shellDir        DB 0
 
                 CODESEG
 Start:          mov     ax, @data
@@ -152,10 +163,13 @@ Cargar:         mov ah, 9
                 int 21h
                 call ReadAddress
                 call ValidateAddress
+                call ValidateRange
                 cmp [fileState], 1
                 je XMLF
                 cmp [fileState], 2
                 je DUSTF
+                cmp [fileState], 3
+                je LowRange
                 mov dx, offset fileSuccess
                 mov ah, 9
                 int 21h
@@ -168,6 +182,10 @@ DUSTF:          mov ah, 09h
                 mov dx, offset fileDust
                 int 21h
                 jmp Cargar
+LowRange:       mov ah, 09h
+                mov dx, offset badRange
+                int 21h
+                jmp Menu
                 
 GenerarRep:     call GenerateReport
                 mov dx, offset impresionExit
@@ -223,6 +241,16 @@ Opciones2:      mov ah, 09h
                 ja NotInRange
                 mov [speed], al
                 sub [speed], 30h
+                mov ah, [speed]
+                cmp [sortType], 1
+                je VelBubble
+                cmp [sortType], 2
+                je VelQuick
+                mov [shellSpeed], ah
+                jmp Opciones3
+VelBubble:      mov [bubbleSpeed], ah
+                jmp Opciones3
+VelQuick:       mov [quickSpeed], ah
                 jmp Opciones3
 NotInRange:     mov ah, 09h
                 mov dx, offset warningMes
@@ -242,10 +270,28 @@ Opciones3:      mov ah, 09h
                 int 21h
                 jmp Opciones3
 Desc:           mov [orderMode], 01h
-                call Sorting
+                cmp [sortType], 1
+                je DirectBubble
+                cmp [sortType], 2
+                je DirectQuick
+                mov [shellDir], 0
+                jmp StartSorting
+DirectBubble:   mov [bubbleDir], 0
+                jmp StartSorting
+DirectQuick:    mov [quickDir], 0
+StartSorting:   call Sorting
                 jmp Menu
 Asc:            mov [orderMode], 02h
-                call Sorting
+                cmp [sortType], 1
+                je DirectBubble2
+                cmp [sortType], 2
+                je DirectQuick2
+                mov [shellDir], 1
+                jmp StartSorting2
+DirectBubble2:  mov [bubbleDir], 1
+                jmp StartSorting2
+DirectQuick2:   mov [quickDir], 1
+StartSorting2:  call Sorting
                 jmp Menu
              
 
@@ -378,9 +424,40 @@ SaveSecond:     mov al, [fileBuffer + si]
                 inc bx
                 inc cx
                 jmp Ignore
-FinishProcess:  ret
+FinishProcess:  mov [bubbleSpeed], 0
+                mov [quickSpeed], 0
+                mov [shellSpeed], 0
+                mov [bubbleDir], 0
+                mov [quickDir], 0
+                mov [shellDir], 0
+                ret
 
 ENDP            ProcessContent
+
+PROC            ValidateRange
+                mov si, 00h
+Elements:       cmp [array + si], 0
+                je FinishRange
+                cmp si, 25
+                je FinishRangeOk
+                inc si
+FinishRange:    cmp si, 10d
+                jae FinishRangeOk
+                mov [fileState], 3
+                mov si, 00h
+CleanFBuff2:    mov [fileBuffer + si], 0
+                inc si
+                cmp si, 1024d
+                jb CleanFBuff2
+                mov si, 00h
+CleanArray:     mov [array + si], 0
+                inc si
+                cmp si, 25
+                jb CleanArray
+                ret
+FinishRangeOk:  mov [fileState], 0
+                ret
+ENDP            ValidateRange
 
 PROC            ParseInt
                 mov dx, 00h
@@ -582,7 +659,12 @@ PROC            QuickSorting
 QuickWhile:     mov bl, [from]
                 mov bh, 00h
                 mov si, bx
+                ;mov dh, [sortedArray + si]
+                ;mov [hertz], dh
+                ;call Sound
                 mov dh, [pivot]
+                ;mov [hertz], dh
+                ;call Sound
                 cmp [orderMode], 01h
                 je QuickDesc
                 cmp [sortedArray + si], dh
@@ -595,7 +677,12 @@ QInc:           inc [from]
 QuickWhile2:    mov bl, [to]
                 mov bh, 00h
                 mov si, bx
+                ;mov dh, [sortedArray + si]
+                ;mov [hertz], dh
+                ;call Sound
                 mov dh, [pivot]
+                ;mov [hertz], dh
+                ;call Sound
                 cmp [orderMode], 01h
                 je QuickDesc2
                 cmp [sortedArray + si], dh
@@ -606,10 +693,16 @@ QuickDesc2:     cmp [sortedArray + si], dh
                 jae QuickIf
 QDec:           dec [to]
                 jmp QuickWhile2 
-QuickIf:        mov ah, [from]
+QuickIf:        ;cmp [orderMode], 01h
+                ;je LastDesc
+                mov ah, [from]
                 cmp ah, [to]
                 ja QuickCond
-                mov bl, [from]
+                ;jmp QChange
+LastDesc:       ;mov ah, [from]
+                ;cmp ah, [to]
+                ;jb QuickCond
+QChange:        mov bl, [from]
                 mov bh, 00h
                 mov si, bx
                 mov ah, [sortedArray + si]
@@ -624,6 +717,7 @@ QuickIf:        mov ah, [from]
                 mov [sortedArray + si], al
                 inc [from]
                 dec [to] 
+                ;call DrawFrame
 QuickCond:      mov ah, [from]
                 cmp ah, [to]
                 jbe DobleQ
@@ -683,8 +777,8 @@ StartShell:     mov ch, [gap]
                 mov [arraySize], ch
                 shr si, 1
                 shr [gap], 1
-                inc si
-                inc [gap]
+                ;inc si
+                ;inc [gap]
 EvalShell:      dec si
                 dec [gap]
                 mov ch, 00h
@@ -695,7 +789,12 @@ InitMainShell:  mov dh, ch
                 add dh, [gap]
                 cmp dh, [arraySize]
                 jae EvalShell
-                mov ah, [byte bx]
+                ;mov ah, [byte bx + si]
+                ;mov [hertz], ah
+                ;call Sound
+                ;mov ah, [byte bx]
+                ;mov [hertz], ah
+                ;call Sound
                 cmp [orderMode], 1
                 je DescShellC
                 cmp ah, [byte bx + si]
@@ -707,6 +806,7 @@ DescShellC:     cmp ah, [byte bx + si]
 XChangeShell:   mov al, [byte bx + si]
                 mov [bx], al
                 mov [bx + si], ah
+                ;call DrawFrame
 ForwardShell:   inc bx
                 inc ch
                 jmp InitMainShell
@@ -807,6 +907,7 @@ ENDP            ToString
 PROC            DrawFrame
                 push ax
                 push bx
+                push si 
                 mov ah, 00h
                 mov al, 13h
                 int 10h
@@ -836,6 +937,7 @@ PROC            DrawFrame
                 call DrawInfo
                 call DrawBars
                 call DrawNumbers
+                pop si
                 pop bx
                 pop ax
                 ret
@@ -1125,8 +1227,7 @@ YellowNumber:   mov [colorActual], 0Eh
                 jmp PaintNumber
 GreenNumber:    mov [colorActual], 02h
                 jmp PaintNumber
-PaintNumber:    ;a partir de aqui lo pinto
-                mov bp, offset printNumber
+PaintNumber:    mov bp, offset printNumber
                 mov cx, 2
                 mov ah, 19
                 mov al, 01h
@@ -1147,7 +1248,654 @@ NumbersDone:    pop ax
 ENDP            DrawNumbers
 
 PROC            GenerateReport
+                call GetDate
+                call GetTime
+                mov dx, offset reportName
+                xor cx, cx
+                mov ah, 3Ch
+                int 21h
+                jc Mistake
+                mov [handle], ax
+                mov cx, 1
+                jmp Block0
+Mistake:        mov dx, offset impresionError
+                mov ah, 09h
+                int 21h
+                ret
+Block0:         mov si, 00h
+IteBlock0:      mov ah, 40h
+                mov bx, offset bloque0
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block1
+                int 21h
+                inc si
+                jmp IteBlock0
+Block1:         mov si, 00h
+IteBlock1:      mov ah, 40h
+                mov bx, offset bloque1
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block2
+                int 21h
+                inc si
+                jmp IteBlock1
+Block2:         mov si, 00h
+IteBlock2:      mov ah, 40h
+                mov bx, offset bloque2
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block3
+                int 21h
+                inc si
+                jmp IteBlock2
+Block3:         mov si, 00h
+IteBlock3:      mov ah, 40h
+                mov bx, offset bloque3
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block4
+                int 21h
+                inc si
+                jmp IteBlock3
+Block4:         mov si, 00h
+IteBlock4:      mov ah, 40h
+                mov bx, offset bloque4
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block5
+                int 21h
+                inc si
+                jmp IteBlock4
+Block5:         mov ah, 40h
+                mov dl, [day]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [day + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock5:      mov ah, 40h
+                mov bx, offset bloque5
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block6
+                int 21h
+                inc si
+                jmp IteBlock5
+Block6:         mov ah, 40h
+                mov dl, [month]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [month + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock6:      mov ah, 40h
+                mov bx, offset bloque6
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block7
+                int 21h
+                inc si
+                jmp IteBlock6
+Block7:         mov ah, 40h
+                mov dl, [century]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [century + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [year]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [year + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock7:      mov ah, 40h
+                mov bx, offset bloque7
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block8
+                int 21h
+                inc si
+                jmp IteBlock7
+Block8:         mov ah, 40h
+                mov dl, [hour]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [hour + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock8:      mov ah, 40h
+                mov bx, offset bloque8
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block9
+                int 21h
+                inc si
+                jmp IteBlock8
+Block9:         mov ah, 40h
+                mov dl, [minutes]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [minutes + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock9:      mov ah, 40h
+                mov bx, offset bloque9
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block10
+                int 21h
+                inc si
+                jmp IteBlock9
+Block10:        mov ah, 40h
+                mov dl, [seconds]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [seconds + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock10:     mov ah, 40h
+                mov bx, offset bloque10
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block11
+                int 21h
+                inc si
+                jmp IteBlock10
+Block11:        mov si, 00h
+IteBlock11:     mov ah, 40h
+                mov bx, offset bloque11
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block12
+                int 21h
+                inc si
+                jmp IteBlock11
+Block12:        mov si, 00h
+IteBlock12:     mov ah, 40h
+                mov bx, offset bloque12
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block13
+                int 21h
+                inc si
+                jmp IteBlock12
+Block13:        call PrintUnordered
+                mov si, 00h
+IteBlock13:     mov ah, 40h
+                mov bx, offset bloque13
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block14
+                int 21h
+                inc si
+                jmp IteBlock13
+Block14:        call PrintOrdered
+                mov si, 00h
+IteBlock14:     mov ah, 40h
+                mov bx, offset bloque14
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block15
+                int 21h
+                inc si
+                jmp IteBlock14
+Block15:        mov ah, 40h
+                mov dl, [bubbleSpeed]
+                mov [oneByte], dl
+                add [oneByte], 30h
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock15:     mov ah, 40h
+                mov bx, offset bloque15
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block16
+                int 21h
+                inc si
+                jmp IteBlock15
+Block16:        mov si, 00h
+IteBlock16:     mov ah, 40h
+                mov bx, offset bloque16
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block17
+                int 21h
+                inc si
+                jmp IteBlock16
+Block17:        mov si, 00h
+IteBlock17:     mov ah, 40h
+                mov bx, offset bloque17
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block18
+                int 21h
+                inc si
+                jmp IteBlock17
+Block18:        mov si, 00h
+IteBlock18:     mov ah, 40h
+                mov bx, offset bloque18
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block19
+                int 21h
+                inc si
+                jmp IteBlock18
+Block19:        mov si, 00h
+Eve:            cmp [bubbleDir], 0
+                je BubDes
+                mov bx, offset ascending
+                jmp PrintDir
+BubDes:         mov bx, offset descending
+PrintDir:       mov ah, 40h
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Pre19
+                int 21h
+                inc si
+                jmp Eve
+Pre19:          mov si, 00h
+IteBlock19:     mov ah, 40h
+                mov bx, offset bloque19
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block20
+                int 21h
+                inc si
+                jmp IteBlock19
+Block20:        mov si, 00h
+IteBlock20:     mov ah, 40h
+                mov bx, offset bloque20
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block21
+                int 21h
+                inc si
+                jmp IteBlock20
+Block21:        mov ah, 40h
+                mov dl, [quickSpeed]
+                mov [oneByte], dl
+                add [oneByte], 30h
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock21:     mov ah, 40h
+                mov bx, offset bloque21
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block22
+                int 21h
+                inc si
+                jmp IteBlock21
+Block22:        mov si, 00h
+IteBlock22:     mov ah, 40h
+                mov bx, offset bloque22
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block23
+                int 21h
+                inc si
+                jmp IteBlock22
+Block23:        mov si, 00h
+IteBlock23:     mov ah, 40h
+                mov bx, offset bloque23
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block24
+                int 21h
+                inc si
+                jmp IteBlock23
+Block24:        mov si, 00h
+IteBlock24:     mov ah, 40h
+                mov bx, offset bloque24
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block25
+                int 21h
+                inc si
+                jmp IteBlock24
+Block25:        mov si, 00h
+Eve25:          cmp [quickDir], 0
+                je QuicDes
+                mov bx, offset ascending
+                jmp PrintDir25
+QuicDes:        mov bx, offset descending
+PrintDir25:     mov ah, 40h
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Pre25
+                int 21h
+                inc si
+                jmp Eve25
+Pre25:          mov si, 00h
+IteBlock25:     mov ah, 40h
+                mov bx, offset bloque25
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block26
+                int 21h
+                inc si
+                jmp IteBlock25
+Block26:        mov si, 00h
+IteBlock26:     mov ah, 40h
+                mov bx, offset bloque26
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block27
+                int 21h
+                inc si
+                jmp IteBlock26
+Block27:        mov ah, 40h
+                mov dl, [shellSpeed]
+                mov [oneByte], dl
+                add [oneByte], 30h
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 00h
+IteBlock27:     mov ah, 40h
+                mov bx, offset bloque27
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block28
+                int 21h
+                inc si
+                jmp IteBlock27
+Block28:        mov si, 00h
+IteBlock28:     mov ah, 40h
+                mov bx, offset bloque28
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block29
+                int 21h
+                inc si
+                jmp IteBlock28
+Block29:        mov si, 00h
+IteBlock29:     mov ah, 40h
+                mov bx, offset bloque29
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block30
+                int 21h
+                inc si
+                jmp IteBlock29
+Block30:        mov si, 00h
+IteBlock30:     mov ah, 40h
+                mov bx, offset bloque30
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Block31
+                int 21h
+                inc si
+                jmp IteBlock30
+Block31:        mov si, 00h
+Eve31:          cmp [shellDir], 0
+                je SheDes
+                mov bx, offset ascending
+                jmp PrintDir31
+SheDes:         mov bx, offset descending
+PrintDir31:     mov ah, 40h
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je Pre31
+                int 21h
+                inc si
+                jmp Eve31
+Pre31:          mov si, 00h
+IteBlock31:     mov ah, 40h
+                mov bx, offset bloque31
+                mov dl, [byte bx + si]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                cmp [oneByte], '$'
+                je SaveFile
+                int 21h
+                inc si
+                jmp IteBlock31
+SaveFile:       mov ah, 3Eh
+                int 21h
                 ret
 ENDP            GenerateReport
+
+PROC            PrintUnordered
+                mov ah, [array]
+                mov [numberValue], ah
+                call toString
+                mov ah, 40h
+                mov dl, [printNumber]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [printNumber + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 01h
+CicloUnord:     cmp si, 25
+                je FinishUnord
+                cmp [array + si], 00h
+                je FinishUnord
+                mov ah, 40h
+                mov [oneByte], ','
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, [array+ si]
+                mov [numberValue], ah
+                call toString
+                mov ah, 40h
+                mov dl, [printNumber]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [printNumber + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                inc si
+                jmp CicloUnord
+FinishUnord:    ret
+ENDP            PrintUnordered
+
+PROC            PrintOrdered
+                mov ah, [sortedArray]
+                mov [numberValue], ah
+                call toString
+                mov ah, 40h
+                mov dl, [printNumber]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [printNumber + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov si, 01h
+CicloOrd:       cmp si, 25
+                je FinishOrd
+                cmp [sortedArray + si], 00h
+                je FinishUnord
+                mov ah, 40h
+                mov [oneByte], ','
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, [sortedArray + si]
+                mov [numberValue], ah
+                call toString
+                mov ah, 40h
+                mov dl, [printNumber]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                mov ah, 40h
+                mov dl, [printNumber + 1]
+                mov [oneByte], dl
+                mov dx, offset oneByte
+                mov bx, [handle]
+                int 21h
+                inc si
+                jmp CicloOrd
+FinishOrd:    ret
+ENDP            PrintOrdered
 
                 END Start

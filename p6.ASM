@@ -163,11 +163,11 @@ Cargar:         mov ah, 9
                 int 21h
                 call ReadAddress
                 call ValidateAddress
-                call ValidateRange
                 cmp [fileState], 1
                 je XMLF
                 cmp [fileState], 2
                 je DUSTF
+                call ValidateRange
                 cmp [fileState], 3
                 je LowRange
                 mov dx, offset fileSuccess
@@ -441,6 +441,7 @@ Elements:       cmp [array + si], 0
                 cmp si, 25
                 je FinishRangeOk
                 inc si
+                jmp Elements
 FinishRange:    cmp si, 10d
                 jae FinishRangeOk
                 mov [fileState], 3
@@ -659,12 +660,12 @@ PROC            QuickSorting
 QuickWhile:     mov bl, [from]
                 mov bh, 00h
                 mov si, bx
-                ;mov dh, [sortedArray + si]
-                ;mov [hertz], dh
-                ;call Sound
+                mov dh, [sortedArray + si]
+                mov [hertz], dh
+                call Sound
                 mov dh, [pivot]
-                ;mov [hertz], dh
-                ;call Sound
+                mov [hertz], dh
+                call Sound
                 cmp [orderMode], 01h
                 je QuickDesc
                 cmp [sortedArray + si], dh
@@ -677,12 +678,12 @@ QInc:           inc [from]
 QuickWhile2:    mov bl, [to]
                 mov bh, 00h
                 mov si, bx
-                ;mov dh, [sortedArray + si]
-                ;mov [hertz], dh
-                ;call Sound
+                mov dh, [sortedArray + si]
+                mov [hertz], dh
+                call Sound
                 mov dh, [pivot]
-                ;mov [hertz], dh
-                ;call Sound
+                mov [hertz], dh
+                call Sound
                 cmp [orderMode], 01h
                 je QuickDesc2
                 cmp [sortedArray + si], dh
@@ -693,16 +694,10 @@ QuickDesc2:     cmp [sortedArray + si], dh
                 jae QuickIf
 QDec:           dec [to]
                 jmp QuickWhile2 
-QuickIf:        ;cmp [orderMode], 01h
-                ;je LastDesc
-                mov ah, [from]
+QuickIf:        mov ah, [from]
                 cmp ah, [to]
                 ja QuickCond
-                ;jmp QChange
-LastDesc:       ;mov ah, [from]
-                ;cmp ah, [to]
-                ;jb QuickCond
-QChange:        mov bl, [from]
+                mov bl, [from]
                 mov bh, 00h
                 mov si, bx
                 mov ah, [sortedArray + si]
@@ -717,7 +712,7 @@ QChange:        mov bl, [from]
                 mov [sortedArray + si], al
                 inc [from]
                 dec [to] 
-                ;call DrawFrame
+                call DrawFrame
 QuickCond:      mov ah, [from]
                 cmp ah, [to]
                 jbe DobleQ
@@ -777,8 +772,8 @@ StartShell:     mov ch, [gap]
                 mov [arraySize], ch
                 shr si, 1
                 shr [gap], 1
-                ;inc si
-                ;inc [gap]
+                inc si
+                inc [gap]
 EvalShell:      dec si
                 dec [gap]
                 mov ch, 00h
@@ -789,12 +784,12 @@ InitMainShell:  mov dh, ch
                 add dh, [gap]
                 cmp dh, [arraySize]
                 jae EvalShell
-                ;mov ah, [byte bx + si]
-                ;mov [hertz], ah
-                ;call Sound
-                ;mov ah, [byte bx]
-                ;mov [hertz], ah
-                ;call Sound
+                mov ah, [byte bx + si]
+                mov [hertz], ah
+                call Sound
+                mov ah, [byte bx]
+                mov [hertz], ah
+                call Sound
                 cmp [orderMode], 1
                 je DescShellC
                 cmp ah, [byte bx + si]
@@ -806,7 +801,7 @@ DescShellC:     cmp ah, [byte bx + si]
 XChangeShell:   mov al, [byte bx + si]
                 mov [bx], al
                 mov [bx + si], ah
-                ;call DrawFrame
+                call DrawFrame
 ForwardShell:   inc bx
                 inc ch
                 jmp InitMainShell

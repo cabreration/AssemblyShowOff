@@ -19,8 +19,14 @@ extFail         DB 'Extension incorrecta', 10, 13, '$'
 fileDust        DB 'El archivo que intenta leer no existe', 10, 13, '$'
 fileSuccess     DB 'El archivo fue cargado con exito!', 10, 13, '$'
 errorBefOrd     DB 10, 13, 'No hay ningun archivo cargado todavia!', 10, 13, '$'
-filterLine      DB 10, 13, '==================== Filtros ====================', '$'
-commandLine     DB 10, 13, '>> ', '$'
+filterLine      DB 10, 13, '==================== Filtros ====================', 10, 13, '$'
+commandLine     DB '>> ', '$'
+notSupported    DB '-- El comando ingresado no es soportado por el sistema', 10, 13, '$'
+detailS         DB 'detalles'
+showS           DB 'mostrar'
+detailLine      DB '-------------------- Detalles --------------------', 10, 13, '$'
+showLine        DB '-------------------- Mostrars --------------------', 10, 13, '$'
+direccion       DB 'IMAGEN2.BMP', 0
 
 ;structs
 STRUC   Miembro
@@ -39,6 +45,19 @@ oneByte         DB 0
 currentMember   DB 0
 attribute       DB 8 DUP (0)
 command         DB 32 DUP (0)
+bufferComando   DB 7 DUP (0)
+bufferId        DB 16 DUP (0)
+imageAddress    DB 64 DUP (0)
+nombreActual    DB 16 DUP (0)
+fileSize        DB 4 (0)
+fileWidth       DB 4 (0)
+fileHeight      DB 4 (0)
+
+;variables para la prueba de carga
+header          DB 54 DUP (0)
+imageHandle     DW 0
+palette         DB 256*4 DUP (0)
+scrLine         DB 320 DUP (0)
 
 arbol            Miembro 50 DUP (<>)
 
@@ -46,6 +65,12 @@ arbol            Miembro 50 DUP (<>)
 Start:          mov     ax, @data
                 mov     ds, ax
                 mov     es, ax
+                ;mov     ax, 13h
+                ;int     10h
+                ;call    OpenImage
+                ;mov     ah, 00h
+                ;int     16h
+                ;jmp     Salir
 
 Menu:           mov     ah, 9
                 mov     dx, offset menuLine
@@ -286,7 +311,12 @@ PROC            ProcessAttributes
     FImage:     cmp     [fileBuffer + si], 34d
                 je      CheckOut
                 mov     ah, [fileBuffer + si]
-                mov     [byte bx + di], ah
+                cmp     ah, 'z'
+                ja      DontUp
+                cmp     ah, 'a'
+                jb      DontUp
+                sub     ah, 32
+    DontUp:     mov     [byte bx + di], ah
                 inc     si
                 inc     di
                 jmp     FImage
@@ -299,7 +329,13 @@ PROC            ProcessAttributes
 ENDP            ProcessAttributes
 
 PROC            FiltersMenu
+                cmp     [fileBuffer], 00h
+                jne     ML
+                mov     dx, offset errorBefOrd
                 mov     ah, 09h
+                int     21h
+                jmp     ExitF
+    ML:         mov     ah, 09h
                 mov     dx, offset filterLine
                 int     21h
     PDash:      mov     ah, 09h
@@ -329,8 +365,241 @@ PROC            FiltersMenu
 ENDP            FiltersMenu
 
 PROC            ExecuteCommand
+                mov     si, 00h
+    CleanBC:    cmp     si, 07h
+                je      CleanBIZ
+                mov     [bufferComando + si], 00h
+                inc     si
+                jmp     CleanBC
+    CleanBIZ:   mov     si, 00h
+    CleanBI:    cmp     si, 16d
+                je      MoveCom
+                mov     [bufferId + si], 00h
+                inc     si
+                jmp     CleanBI
+    MoveCom:    mov     si, 00h
+    MoveComY:   cmp     [command + si], 32d
+                je      CopyId
+                mov     ah, [command + si]
+                cmp     ah, 'A'
+                jb      DLow
+                cmp     ah, 'Z'
+                ja      DLow
+                add     ah, 32
+    DLow:       mov     [bufferComando + si], ah
+                inc     si
+                jmp     MoveComY            
+    CopyId:     inc     si
+                mov     di, 00h
+    CopyIdY:    cmp     [command + si], 00h
+                je      Decide
+                mov     ah, [command + si]
+                mov     [bufferId + di], ah
+                inc     si
+                inc     di
+                jmp     CopyIdY
+    Decide:     cld
+                mov     si, offset bufferComando
+                mov     di, offset showS
+                mov     cx, 07h
+                repe    cmpsb
+                je      ShowI
+                cld 
+                mov     si, offset bufferComando
+                mov     di, offset detailS
+                mov     cx, 07h
+                repe    cmpsb
+                je      DetailI
+                mov     ah, 09h
+                mov     dx, offset notSupported
+                int     21h
+                ret
+                cmp     
+    ShowI:      call    GetImageAddress
+                cmp     [imageAddress], 0
+                je      Wasnt
+                ret
+    DetailI:    call    GetImageAddress
+                cmp     [imageAddress], 0
+                je      Wasnt
+                mov     ah, 09h
+                mov     dx, offset detailLine
+                int     21h
+    Wasnt:      mov     ah, 09h
+                mov     dx, offset ErrorDust
+                int     21h
                 ret
 ENDP            ExecuteCommand
+
+PROC            GetImageAddress
+                mov     si, 00h
+    CleanIA:    mov     [imageAddress + si], 00h
+                inc     si
+                cmp     si, 40h
+                jb      CleanIA
+                call    CleanCurrentName
+                mov     si, 00h
+                mov     di, 00h
+                mov     bx, offset arbol
+    Over:       cmp     [bx + si], 0
+                je      NotDeh
+                cmp     di, 50
+                je      NotDeh
+    CatName:    mov     ah, [bx + si]
+                mov     [nombreActual + si], ah
+                inc     si
+                cmp     [bx + si], 0
+                jne     CatName
+                cld 
+                mov     si, offset bufferId
+                mov     di, offset nombreActual
+                mov     cx, 10h
+                repe    cmpsb
+                je      GAddress
+                add     bx, 88d
+                inc     di
+                mov     si, 00h
+                jmp     Over
+    GAddress:   add     bx, 10h
+                mov     si, 00h
+    CatAddress: mov     ah, [bx + si]
+                mov     [imageAddress + si], ah
+                inc     si
+                cmp     [bx + si], 0
+                jne     CatAddress
+                cmp     si, 64d
+                jne     CatAddress
+    NotDeh:     ret
+ENDP            GetImageAddress
+
+PROC            CleanCurrentName
+                push    si
+                mov     si, 00h
+    CleanNA:    mov     [nombreActual + si], 00h
+                inc     si
+                cmp     si, 16d
+                jb      CleanNA
+                pop     si
+                ret
+ENDP            CleanCurrentName
+
+PROC            OpenImage
+                mov     [imageHandle], 0
+                mov     ah, 3Dh
+                xor     al, al
+                mov     dx, offset direccion
+                int     21h
+                jc      ImageError
+                mov     [imageHandle], ax
+                call    ReadHeader
+                call    ReadPalette
+                call    CopyPalette
+                call    CopyBitMap
+                ret
+
+    ImageError: mov     dx, offset fileDust
+                mov     ah, 09h
+                int     21h
+                ret
+ENDP            OpenImage
+
+PROC            ReadHeader
+                mov     si, 00h
+    CleanHead:  mov     [header + si], 00h
+                inc     si
+                cmp     si, 54d
+                jb      CleanHead            
+                mov     ah, 3Fh
+                mov     bx, [imageHandle]
+                mov     cx, 54
+                mov     dx, offset header
+                int     21h
+                ret
+ENDP            ReadHeader
+
+PROC            ReadPalette
+                mov     si, 00h
+    CleanPal:   mov     [palette + si], 00h
+                inc     si
+                cmp     si, 400h
+                jb      CleanPal
+                mov     ah, 3fh
+                mov     bx, [imageHandle]
+                mov     cx, 400h
+                mov     dx, offset palette
+                int     21h
+                ret
+ENDP            ReadPalette
+
+PROC            CopyPalette
+                mov     si, offset palette
+                mov     cx, 256d
+                mov     dx, 3C8h
+                mov     al, 0
+
+                out     dx, al
+    PalLoop:    mov     al, [si + 2]
+                shr     al, 1
+                shr     al, 1
+
+                out     dx, al
+                mov     al, [si + 1]
+                shr     al, 1
+                shr     al, 1
+                
+                out     dx, al
+                mov     al, [si]
+                shr     al, 1
+                shr     al, 1
+                out     dx, al
+                add     si, 4
+                loop    PalLoop
+                ret
+ENDP            CopyPalette
+
+PROC            CopyBitMap
+                mov     ax, 0A000h
+                mov     es, ax
+                mov     cx, 200
+
+    BMPLoop:    push    cx
+                mov     di, cx
+                shl     cx, 1
+                shl     cx, 1
+                shl     cx, 1
+                shl     cx, 1
+                shl     cx, 1
+                shl     cx, 1
+                shl     di, 1
+                shl     di, 1
+                shl     di, 1
+                shl     di, 1
+                shl     di, 1
+                shl     di, 1
+                shl     di, 1
+                shl     di, 1
+                add     di, cx
+
+                mov     ah, 3Fh
+                mov     cx, 320
+                mov     dx, offset scrLine
+                mov     bx, [imageHandle]
+                int     21h
+
+                cld
+
+                mov     cx, 320d
+                mov     si, offset scrLine
+                rep     movsb
+
+                pop     cx
+                loop    BMPLoop
+                ret
+ENDP            CopyBitMap
+
+PROC            DetailImage
+                ret 
+ENDP            DetailImage
 
 PROC            GraphvizMenu
                 ret

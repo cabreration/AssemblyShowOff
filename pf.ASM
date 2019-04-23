@@ -24,9 +24,14 @@ commandLine     DB '>> ', '$'
 notSupported    DB '-- El comando ingresado no es soportado por el sistema', 10, 13, '$'
 detailS         DB 'detalles'
 showS           DB 'mostrar'
-detailLine      DB '-------------------- Detalles --------------------', 10, 13, '$'
+detailLine      DB 10, 13, '-------------------- Detalles --------------------', 10, 13, '$'
 showLine        DB '-------------------- Mostrars --------------------', 10, 13, '$'
-direccion       DB 'IMAGEN2.BMP', 0
+direccion       DB 'LAMBO.BMP', 0
+bytes           DB ' bytes', 10, 13, '$'
+pix             DB ' pixeles', 10, 13, '$'
+tam             DB 'Tamanio de la imagen: ', '$'
+alt             DB 'Alto de la imagen: ', '$'
+anc             DB 'Ancho de la imagen: ', '$'
 
 ;structs
 STRUC   Miembro
@@ -49,15 +54,20 @@ bufferComando   DB 7 DUP (0)
 bufferId        DB 16 DUP (0)
 imageAddress    DB 64 DUP (0)
 nombreActual    DB 16 DUP (0)
-fileSize        DB 4 (0)
-fileWidth       DB 4 (0)
-fileHeight      DB 4 (0)
+worked          DB 0
+number          DB 4 DUP (0)
+printNumber     DB '$$$$$$$$$$$$$$$'
+pOrB            DB 0
 
 ;variables para la prueba de carga
 header          DB 54 DUP (0)
 imageHandle     DW 0
-palette         DB 256*4 DUP (0)
+palette         DB 1024 DUP ('P')
 scrLine         DB 320 DUP (0)
+palSize         DW 0
+fileWidth       DW 0
+fileHeight      DW 0
+fileSize        DB 4 DUP (0)
 
 arbol            Miembro 50 DUP (<>)
 
@@ -65,12 +75,6 @@ arbol            Miembro 50 DUP (<>)
 Start:          mov     ax, @data
                 mov     ds, ax
                 mov     es, ax
-                ;mov     ax, 13h
-                ;int     10h
-                ;call    OpenImage
-                ;mov     ah, 00h
-                ;int     16h
-                ;jmp     Salir
 
 Menu:           mov     ah, 9
                 mov     dx, offset menuLine
@@ -365,6 +369,8 @@ PROC            FiltersMenu
 ENDP            FiltersMenu
 
 PROC            ExecuteCommand
+                mov     ax, ds
+                mov     es, ax
                 mov     si, 00h
     CleanBC:    cmp     si, 07h
                 je      CleanBIZ
@@ -413,11 +419,11 @@ PROC            ExecuteCommand
                 mov     ah, 09h
                 mov     dx, offset notSupported
                 int     21h
-                ret
-                cmp     
+                ret     
     ShowI:      call    GetImageAddress
                 cmp     [imageAddress], 0
                 je      Wasnt
+                call    ShowOriginalImage
                 ret
     DetailI:    call    GetImageAddress
                 cmp     [imageAddress], 0
@@ -425,13 +431,17 @@ PROC            ExecuteCommand
                 mov     ah, 09h
                 mov     dx, offset detailLine
                 int     21h
+                call    DetailImage
+                ret
     Wasnt:      mov     ah, 09h
-                mov     dx, offset ErrorDust
+                mov     dx, offset fileDust
                 int     21h
                 ret
 ENDP            ExecuteCommand
 
 PROC            GetImageAddress
+                mov     ax, ds
+                mov     es, ax
                 mov     si, 00h
     CleanIA:    mov     [imageAddress + si], 00h
                 inc     si
@@ -441,14 +451,15 @@ PROC            GetImageAddress
                 mov     si, 00h
                 mov     di, 00h
                 mov     bx, offset arbol
-    Over:       cmp     [bx + si], 0
+    Over:       call    CleanCurrentName
+                cmp     [byte bx + si], 0
                 je      NotDeh
                 cmp     di, 50
                 je      NotDeh
     CatName:    mov     ah, [bx + si]
                 mov     [nombreActual + si], ah
                 inc     si
-                cmp     [bx + si], 0
+                cmp     [byte bx + si], 0
                 jne     CatName
                 cld 
                 mov     si, offset bufferId
@@ -465,7 +476,7 @@ PROC            GetImageAddress
     CatAddress: mov     ah, [bx + si]
                 mov     [imageAddress + si], ah
                 inc     si
-                cmp     [bx + si], 0
+                cmp     [byte bx + si], 0
                 jne     CatAddress
                 cmp     si, 64d
                 jne     CatAddress
@@ -483,18 +494,104 @@ PROC            CleanCurrentName
                 ret
 ENDP            CleanCurrentName
 
-PROC            OpenImage
-                mov     [imageHandle], 0
-                mov     ah, 3Dh
-                xor     al, al
-                mov     dx, offset direccion
+PROC            DetailImage
+                call    OpenImage
+                cmp     [worked], 00h
+                jne     Reth
+                ret
+    Reth:       call    ReadHeader
+                ; copiamos el tamanio del archivo
+                mov     ah, [header + 2]
+                mov     [number + 3], ah
+                mov     ah, [header + 3]
+                mov     [number + 2], ah
+                mov     ah, [header + 4]
+                mov     [number + 1], ah
+                mov     ah, [header + 5]
+                mov     [number], ah
+                mov     [pOrB], 00h
+                call    ToString
+                mov     ah, 09h
+                mov     dx, offset tam
                 int     21h
-                jc      ImageError
-                mov     [imageHandle], ax
-                call    ReadHeader
+                mov     dx, offset printNumber
+                int     21h
+                mov     dx, offset bytes
+                int     21h  
+                ; copiamos el largo de la imagen
+                mov     ah, [header + 18]
+                mov     [number + 3], ah
+                mov     ah, [header + 19]
+                mov     [number + 2], ah
+                mov     ah, [header + 20]
+                mov     [number + 1], ah
+                mov     ah, [header + 21]
+                mov     [number], ah
+                mov     [pOrB], 01h
+                call    ToString
+                mov     ah, 09h
+                mov     dx, offset anc
+                int     21h
+                mov     dx, offset printNumber
+                int     21h
+                mov     dx, offset pix
+                int     21h 
+                ; copiamos el alto de la imagen
+                mov     ah, [header + 22]
+                mov     [number + 3], ah
+                mov     ah, [header + 23]
+                mov     [number + 2], ah
+                mov     ah, [header + 24]
+                mov     [number + 1], ah
+                mov     ah, [header + 25]
+                mov     [number], ah
+                mov     [pOrB], 01h
+                call    ToString
+                mov     ah, 09h
+                mov     dx, offset alt
+                int     21h
+                mov     dx, offset printNumber
+                int     21h
+                mov     dx, offset pix
+                int     21h
+                mov     dx, offset detailLine
+                int     21h
+                mov     ah, 3Eh
+                int     21h
+                ret 
+ENDP            DetailImage
+
+PROC            ShowOriginalImage
+                push    es
+                call    OpenImage
+                cmp     [worked], 00h
+                jne     Reta
+                pop     es
+                ret
+    Reta:       call    ReadHeader
                 call    ReadPalette
                 call    CopyPalette
                 call    CopyBitMap
+    Freeze:     mov     ah, 10h
+                int     16h
+                cmp     al, 1Bh
+                jne     Freeze
+                mov     ax, 0003h
+                int     10h
+                pop     es
+                ret
+ENDP            ShowOriginalImage
+
+PROC            OpenImage
+                mov     [worked], 00h
+                mov     [imageHandle], 0
+                mov     ah, 3Dh
+                xor     al, al
+                mov     dx, offset imageAddress
+                int     21h
+                jc      ImageError
+                mov     [imageHandle], ax
+                mov     [worked], 01h
                 ret
 
     ImageError: mov     dx, offset fileDust
@@ -514,53 +611,71 @@ PROC            ReadHeader
                 mov     cx, 54
                 mov     dx, offset header
                 int     21h
+                mov     ch, [header + 11]
+                mov     cl, [header + 10]
+                sub     cx, 54
+                shr     cx, 1
+                shr     cx, 1
+                mov     [palSize], cx
+                mov     cl, [header + 18]
+                mov     ch, [header + 19]
+                mov     [fileWidth], cx
+                mov     cl, [header + 22]
+                mov     ch, [header + 23]
+                mov     [fileHeight], cx
                 ret
 ENDP            ReadHeader
 
 PROC            ReadPalette
                 mov     si, 00h
-    CleanPal:   mov     [palette + si], 00h
+    CleanPal:   mov     [palette + si], 'P'
                 inc     si
                 cmp     si, 400h
                 jb      CleanPal
                 mov     ah, 3fh
                 mov     bx, [imageHandle]
-                mov     cx, 400h
+                mov     cx, [palSize]
+                shl     cx, 1
+                shl     cx, 1
                 mov     dx, offset palette
                 int     21h
                 ret
 ENDP            ReadPalette
 
 PROC            CopyPalette
+                mov     ax, 13h
+                int     10h
+                mov     ax, 0A000h
+                mov     es, ax
                 mov     si, offset palette
-                mov     cx, 256d
+                mov     cx, [palSize]
                 mov     dx, 3C8h
                 mov     al, 0
 
                 out     dx, al
+                inc     dx
     PalLoop:    mov     al, [si + 2]
                 shr     al, 1
                 shr     al, 1
-
                 out     dx, al
+
                 mov     al, [si + 1]
                 shr     al, 1
-                shr     al, 1
-                
+                shr     al, 1                
                 out     dx, al
+
                 mov     al, [si]
                 shr     al, 1
                 shr     al, 1
                 out     dx, al
+
                 add     si, 4
                 loop    PalLoop
                 ret
 ENDP            CopyPalette
 
 PROC            CopyBitMap
-                mov     ax, 0A000h
-                mov     es, ax
-                mov     cx, 200
+                mov     cx, [fileHeight]
 
     BMPLoop:    push    cx
                 mov     di, cx
@@ -581,28 +696,83 @@ PROC            CopyBitMap
                 add     di, cx
 
                 mov     ah, 3Fh
-                mov     cx, 320
+                mov     cx, [fileWidth]
                 mov     dx, offset scrLine
                 mov     bx, [imageHandle]
                 int     21h
 
                 cld
 
-                mov     cx, 320d
+                mov     cx, [fileWidth]
                 mov     si, offset scrLine
                 rep     movsb
 
                 pop     cx
                 loop    BMPLoop
+
+                mov     ah, 3Eh
+                int     21h
                 ret
 ENDP            CopyBitMap
-
-PROC            DetailImage
-                ret 
-ENDP            DetailImage
 
 PROC            GraphvizMenu
                 ret
 ENDP            GraphvizMenu
+
+PROC            ToString
+                mov     si, 00h
+    CleanPN:    mov     [printNumber + si], '$'
+                inc     si
+                cmp     si, 15d
+                jb      CleanPN
+                cmp     [pOrB], 01h
+                je      SimpleP
+                mov     si, 00h
+                mov     di, 00h
+    ForBy:      mov     ah, 00h
+                mov     al, [number + si]
+                mov     cl, 10h
+                div     cl
+                mov     [printNumber + di], al
+                cmp     [printNumber + di], 09h
+                ja      OverFive
+                add     [printNumber + di], 30h
+                jmp     NS
+    OverFive:   add     [printNumber + di], 55d
+    NS:         inc     di
+                mov     [printNumber + di], ah
+                cmp     [printNumber + di], 09h
+                ja      OverFive2
+                add     [printNumber + di], 30h
+                jmp     NSS
+    OverFive2:  add     [printNumber + di], 55d
+    NSS:        inc     di
+    NestByte:   inc     si
+                cmp     si, 04h
+                jb      ForBy
+                ret
+
+    SimpleP:    mov     ah, [number + 2]
+                mov     al, [number + 3]
+                mov     cl, 10d
+                div     cl
+                cmp     al, 09h
+                ja      AgainT
+                mov     [printNumber], al
+                add     [printNumber], 30h
+                mov     [printNumber + 1], ah
+                add     [printNumber + 1], 30h
+                ret
+    AgainT:     mov     [printNumber + 2], ah
+                add     [printNumber + 2], 30h
+                mov     ah, 00h
+                mov     cl, 10d
+                div     cl
+                mov     [printNumber + 1], ah
+                add     [printNumber + 1], 30h
+                mov     [printNumber], al
+                add     [printNumber], 30h
+                ret
+ENDP            ToString
 
                 END Start

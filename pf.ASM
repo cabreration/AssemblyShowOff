@@ -32,13 +32,16 @@ pix             DB ' pixeles', 10, 13, '$'
 tam             DB 'Tamanio de la imagen: ', '$'
 alt             DB 'Alto de la imagen: ', '$'
 anc             DB 'Ancho de la imagen: ', '$'
+mult1000        DW 1000
+mult100         DW 100
+mult10          DW 10 
 
 ;structs
 STRUC   Miembro
         nombre    DB 16 DUP (0)
         image     DB 64 DUP (0)
-        pareja    DB 4 DUP (0)
-        hijo      DB 4 DUP (0)
+        pareja    DW 0
+        hijo      DW 0
 ENDS
 
 ;   variables
@@ -58,6 +61,9 @@ worked          DB 0
 number          DB 4 DUP (0)
 printNumber     DB '$$$$$$$$$$$$$$$'
 pOrB            DB 0
+floatBuffer     DB 4 DUP ('$')
+floatValue      DW 0
+auxBuffer       DB 6 DUP ('$')
 
 ;variables para la prueba de carga
 header          DB 54 DUP (0)
@@ -212,13 +218,24 @@ PROC            LoadContent
                 je      Load
                 cmp     [oneByte], 58d
                 je      Load
+                cmp     [oneByte], 34d
+                je      Any
                 mov     dl, [oneByte]
-                ;cmp     dl, 'A'
-                ;jb      DLowify
-                ;cmp     dl, 'Z'
-                ;ja      DLowify
-                ;add     dl, 32
     DLowify:    mov     [fileBuffer + si], dl                       
+                inc     si
+                jmp     Load
+    Any:        mov     dl, [oneByte]
+                mov     [fileBuffer + si], dl
+                inc     si
+                mov     ah, 3Fh
+                mov     bx, [Handle]
+                mov     cx, 1
+                mov     dx, offset oneByte
+                int     21h
+                cmp     [oneByte], 34d
+                jne     Any
+                mov     dl, [oneByte]
+                mov     [fileBuffer + si], dl
                 inc     si
                 jmp     Load
     StopR:      mov     bx, [Handle]
@@ -229,7 +246,6 @@ PROC            LoadContent
 ENDP            LoadContent
 
 PROC            ProcessContent
-                ; limpiamos el arbol con todos sus elementos y seteamos el elemento actual a 0
                 mov     [currentMember], 00h
                 mov     si, 00h
                 mov     di, 00h
@@ -270,7 +286,7 @@ PROC            ProcessMember
                 mov     cl, 00h
     FindP:      cmp     cl, [currentMember]
                 je      CopyName
-                add     bx, 88d
+                add     bx, 84d
                 inc     cl
                 jmp     FindP
     CopyName:   mov     di, 00h
@@ -324,13 +340,75 @@ PROC            ProcessAttributes
                 inc     si
                 inc     di
                 jmp     FImage
-    SPareja:    nop
-    SHijo:      nop
+    SPareja:    mov     di, 50h
+                call    Resolver
+                jmp     CheckOut
+    SHijo:      mov     di, 52h
+                call    Resolver
     CheckOut:   cmp     [fileBuffer + si + 1], 125d
                 jne     CleanAB
                 add     si, 02h
                 ret     
 ENDP            ProcessAttributes
+
+PROC            Resolver
+                ; no tocar bx
+                push    di
+                mov     cx, 00h
+    Screen:     cmp     [fileBuffer + si], 20h
+                jne     Useful
+                inc     si
+                jmp     Screen
+    Useful:     cmp     [fileBuffer + si], '+'
+                je      Empujar
+                cmp     [fileBuffer + si], '-'
+                je      Empujar
+                cmp     [fileBuffer + si], '/'
+                je      Empujar
+                cmp     [fileBuffer + si], '*'
+                je      Empujar
+                cmp     [fileBuffer + si], 34d
+                je      Release
+    Nerify:     mov     di, 00h
+                mov     [auxBuffer], '$'
+                mov     [auxBuffer + 1], '$'
+                mov     [auxBuffer + 2], '$'
+                mov     [auxBuffer + 3], '$'
+                mov     [auxBuffer + 4], '$'
+                mov     [auxBuffer + 5], '$'
+    Net:        mov     ah, [fileBuffer + si]
+                mov     [auxBuffer + di], ah
+                inc     di
+                inc     si
+                cmp     [fileBuffer + si], 32
+                jne     Net
+                call    GuardarNumero
+                mov     ax, [floatValue]
+                push    ax
+                inc     cx
+                cmp     cx, 02h
+                je      Operar
+                jmp     Screen
+    Operar:     call    OperacionAritmetica
+                ; aqui meto el valor de las operaciones en una variable ax
+                push    ax
+                jmp     Screen
+    Empujar:    push    cx
+                mov     cx, 00h
+                mov     ah, 00h
+                mov     al, [fileBuffer + si]
+                push    ax
+                inc     si
+                jmp     Screen 
+    Release:    pop     ax
+                mov     [floatValue], ax
+                pop     di
+                ret
+ENDP            Resolver
+
+PROC            OperacionAritmetica
+                ret
+ENDP            OperacionAritmetica
 
 PROC            FiltersMenu
                 cmp     [fileBuffer], 00h
@@ -654,9 +732,9 @@ PROC            CopyPalette
 
                 out     dx, al
                 inc     dx
-    PalLoop:    mov     al, [si + 2]
-                shr     al, 1
-                shr     al, 1
+    PalLoop:    mov     al, [si + 2]        ; el invertido es 255 - [al]
+                shr     al, 1               ; escala de grises se suman los tres colores y se dividen dentro de tres y se mandan 3 outs
+                shr     al, 1               ; sumarle un numero como 100 y verificar que no se pase de 255
                 out     dx, al
 
                 mov     al, [si + 1]
@@ -774,5 +852,40 @@ PROC            ToString
                 add     [printNumber], 30h
                 ret
 ENDP            ToString
+
+PROC            GuardarNumero
+                mov     [floatBuffer], '$'
+                mov     [floatBuffer + 1], '$'
+                mov     [floatBuffer + 2], '$'
+                mov     [floatBuffer + 3], '$'
+
+                ret
+ENDP            GuardarNumero
+
+PROC            Numberify
+                mov     [floatValue], 00h
+                mov     ah, 00h
+                mov     al, [floatBuffer]
+                sub     ax, 30h
+                mul     [mult1000]
+                mov     [floatValue], ax
+                mov     ax, 00h
+                mov     al, [floatBuffer + 1]
+                sub     al, 30h
+                mov     bl, 100d
+                mul     bl
+                add     [floatValue], ax
+                mov     ax, 00h
+                mov     al, [floatBuffer + 2]
+                sub     al, 30h
+                mov     bl, 10d
+                mul     bl
+                add     [floatValue], ax
+                mov     ax, 00h
+                mov     al, [floatBuffer + 3]
+                sub     al, 30h
+                add     [floatValue], ax
+                ret
+ENDP            Numberify
 
                 END Start

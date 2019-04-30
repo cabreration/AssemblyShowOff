@@ -64,6 +64,10 @@ pOrB            DB 0
 floatBuffer     DB 4 DUP ('$')
 floatValue      DW 0
 auxBuffer       DB 6 DUP ('$')
+arg1            DW 0
+arg2            DW 0
+resultado       DW 0
+operador        DB 0
 
 ;variables para la prueba de carga
 header          DB 54 DUP (0)
@@ -252,13 +256,13 @@ PROC            ProcessContent
                 mov     bx, offset arbol
     CleanArray: mov     [byte bx + si], 00h
                 inc     si
-                cmp     si, 88d
+                cmp     si, 84d
                 jne     CleanArray
                 inc     di
                 mov     si, 00h
                 cmp     di, 50d
                 je      Filter
-                add     bx, 88d
+                add     bx, 84d
                 jmp     CleanArray
     Filter:     cmp     [fileBuffer + si], 91d
                 je      StartArray
@@ -354,20 +358,23 @@ ENDP            ProcessAttributes
 PROC            Resolver
                 ; no tocar bx
                 push    di
+                push    bx
+                add     si, 02h
                 mov     cx, 00h
     Screen:     cmp     [fileBuffer + si], 20h
                 jne     Useful
                 inc     si
                 jmp     Screen
     Useful:     cmp     [fileBuffer + si], '+'
-                je      Empujar
+                je      Emp
                 cmp     [fileBuffer + si], '-'
-                je      Empujar
+                je      Emp
                 cmp     [fileBuffer + si], '/'
-                je      Empujar
+                je      Emp
                 cmp     [fileBuffer + si], '*'
-                je      Empujar
-                cmp     [fileBuffer + si], 34d
+                jne     Comp
+    Emp:        jmp     Empujar
+    Comp:       cmp     [fileBuffer + si], 34d
                 je      Release
     Nerify:     mov     di, 00h
                 mov     [auxBuffer], '$'
@@ -380,18 +387,31 @@ PROC            Resolver
                 mov     [auxBuffer + di], ah
                 inc     di
                 inc     si
-                cmp     [fileBuffer + si], 32
+                cmp     [fileBuffer + si], 32d
+                je      SaveN
+                cmp     [fileBuffer + si], 34d
                 jne     Net
-                call    GuardarNumero
+    SaveN:      call    GuardarNumero
                 mov     ax, [floatValue]
                 push    ax
                 inc     cx
                 cmp     cx, 02h
                 je      Operar
                 jmp     Screen
-    Operar:     call    OperacionAritmetica
-                ; aqui meto el valor de las operaciones en una variable ax
+    Operar:     pop     ax
+                mov     [arg2], ax
+                pop     ax
+                mov     [arg1], ax
+                xor     ax, ax
+                pop     ax              ; aqui esta guardado el tipo de operacion
+                mov     [operador], al
+                call    OperacionAritmetica
+                pop     cx
+                mov     ax, [resultado]
                 push    ax
+                inc     cx
+                cmp     cx, 02h
+                je      Operar
                 jmp     Screen
     Empujar:    push    cx
                 mov     cx, 00h
@@ -402,12 +422,45 @@ PROC            Resolver
                 jmp     Screen 
     Release:    pop     ax
                 mov     [floatValue], ax
+                pop     bx
                 pop     di
+                mov     [byte bx + di], al
+                mov     [byte bx + di + 1], ah
                 ret
 ENDP            Resolver
 
 PROC            OperacionAritmetica
-                ret
+                mov     [resultado], 0000h
+                cmp     [operador], '+'
+                je      Sumar
+                cmp     [operador], '-'
+                je      Restar
+                cmp     [operador], '*'
+                je      Mult
+    Dividir:    xor     ax, ax
+                xor     dx, dx
+                mov     ax, [arg1]
+                mul     [mult100]
+                div     [arg2]
+                mov     [resultado], ax
+                jmp     Retorno
+    Sumar:      xor     ax, ax
+                add     ax, [arg1]
+                add     ax, [arg2]
+                mov     [resultado], ax
+                jmp     Retorno
+    Restar:     xor     ax, ax
+                mov     ax, [arg1]
+                sub     ax, [arg2]
+                mov     [resultado], ax
+                jmp     Retorno
+    Mult:       xor     ax, ax
+                xor     dx, dx
+                mov     ax, [arg1]
+                mul     [arg2]
+                div     [mult100]
+                mov     [resultado], ax
+    Retorno:    ret
 ENDP            OperacionAritmetica
 
 PROC            FiltersMenu
@@ -545,7 +598,7 @@ PROC            GetImageAddress
                 mov     cx, 10h
                 repe    cmpsb
                 je      GAddress
-                add     bx, 88d
+                add     bx, 84d
                 inc     di
                 mov     si, 00h
                 jmp     Over
@@ -554,8 +607,8 @@ PROC            GetImageAddress
     CatAddress: mov     ah, [bx + si]
                 mov     [imageAddress + si], ah
                 inc     si
-                cmp     [byte bx + si], 0
-                jne     CatAddress
+                ;cmp     [byte bx + si], 0
+                ;jne     CatAddress
                 cmp     si, 64d
                 jne     CatAddress
     NotDeh:     ret
@@ -653,8 +706,15 @@ PROC            ShowOriginalImage
     Freeze:     mov     ah, 10h
                 int     16h
                 cmp     al, 1Bh
-                jne     Freeze
-                mov     ax, 0003h
+                je      Unfreeze
+                cmp     al, 103d
+                je      Gray
+                cmp     al, 71d
+                je      Gray
+                jmp     Freeze
+    Gray:       call    GrayPalette
+                jmp     Freeze
+    Unfreeze:   mov     ax, 0003h
                 int     10h
                 pop     es
                 ret
@@ -751,6 +811,41 @@ PROC            CopyPalette
                 loop    PalLoop
                 ret
 ENDP            CopyPalette
+                
+PROC            GrayPalette
+                mov     ax, 13h
+                int     10h
+                mov     ax, 0A000h
+                mov     es, ax
+                mov     si, offset palette
+                mov     cx, [palSize]
+                mov     dx, 3C8h
+                mov     al, 0
+
+                out     dx, al
+                inc     dx
+    GrayLoop:   mov     ax, [si + 2]        
+                shr     ax, 1               ; escala de grises se suman los tres colores y se dividen dentro de tres y se mandan 3 outs
+                shr     ax, 1
+                mov     bx, [si + 1]
+                shr     bx, 1
+                shr     bx, 1
+                add     ax, bx
+                mov     bx, [si + 2]
+                shr     bx, 1
+                shr     bx, 1
+                add     ax, bx
+                mov     bh, 03h 
+                div     bh              
+                out     dx, ax
+                out     dx, ax
+                out     dx, ax
+
+                add     si, 4
+                loop    PalLoop
+                call    CopyBitMap
+                ret
+ENDP            GrayPalette
 
 PROC            CopyBitMap
                 mov     cx, [fileHeight]
@@ -854,11 +949,68 @@ PROC            ToString
 ENDP            ToString
 
 PROC            GuardarNumero
-                mov     [floatBuffer], '$'
-                mov     [floatBuffer + 1], '$'
-                mov     [floatBuffer + 2], '$'
-                mov     [floatBuffer + 3], '$'
-
+                push    di
+                mov     [floatBuffer], 00h
+                mov     [floatBuffer + 1], 00h
+                mov     [floatBuffer + 2], 00h
+                mov     [floatBuffer + 3], 00h
+                ; buscar si hay punto, esa es la primera division
+    Dot:        cmp     [auxBuffer], 46d
+                je      FloatingC
+                cmp     [auxBuffer + 1], 46d
+                je      FloatingO
+                cmp     [auxBuffer + 2], 46d
+                je      FloatingT
+    Entero:     cmp     [auxBuffer + 1], '$'
+                je      Cent
+                mov     ah, [auxBuffer]
+                sub     ah, 30h
+                mov     [floatBuffer], ah
+                mov     ah, [auxBuffer + 1]
+                sub     ah, 30h
+                mov     [floatBuffer + 1], ah
+                jmp     Yump
+    Cent:       mov     ah, [auxBuffer]
+                sub     ah, 30h
+                mov     [floatBuffer + 1], ah
+    Yump:       jmp     Transform
+    FloatingC:  mov     ah, [auxBuffer + 1]
+                sub     ah, 30h
+                mov     [floatBuffer + 2], ah
+                cmp     [auxBuffer + 2], '$'
+                je      Transform
+                mov     ah, [auxBuffer + 2]
+                sub     ah, 30h
+                mov     [floatBuffer + 3], ah
+                jmp     Transform
+    FloatingO:  mov     ah, [auxBuffer]
+                sub     ah, 30h
+                mov     [floatBuffer + 1], ah
+                mov     ah, [auxBuffer + 2]
+                sub     ah, 30h
+                mov     [floatBuffer + 2], ah
+                cmp     [auxBuffer + 3], '$'
+                je      Transform
+                mov     ah, [auxBuffer + 3]
+                sub     ah, 30h
+                mov     [floatBuffer + 3], ah
+                jmp     Transform
+    FloatingT:  mov     ah, [auxBuffer]
+                sub     ah, 30h
+                mov     [floatBuffer], ah
+                mov     ah, [auxBuffer + 1]
+                sub     ah, 30h
+                mov     [floatBuffer + 1], ah
+                mov     ah, [auxBuffer + 3]
+                sub     ah, 30h
+                mov     [floatBuffer + 2], ah
+                cmp     [auxBuffer + 4], '$'
+                je      Transform
+                mov     ah, [auxBuffer + 4]
+                sub     ah, 30h
+                mov     [floatBuffer + 3], ah 
+    Transform:  call    Numberify
+                pop     di
                 ret
 ENDP            GuardarNumero
 
@@ -866,24 +1018,24 @@ PROC            Numberify
                 mov     [floatValue], 00h
                 mov     ah, 00h
                 mov     al, [floatBuffer]
-                sub     ax, 30h
+                ;sub     ax, 30h
                 mul     [mult1000]
                 mov     [floatValue], ax
                 mov     ax, 00h
                 mov     al, [floatBuffer + 1]
-                sub     al, 30h
+                ;sub     al, 30h
                 mov     bl, 100d
                 mul     bl
                 add     [floatValue], ax
                 mov     ax, 00h
                 mov     al, [floatBuffer + 2]
-                sub     al, 30h
+                ;sub     al, 30h
                 mov     bl, 10d
                 mul     bl
                 add     [floatValue], ax
                 mov     ax, 00h
                 mov     al, [floatBuffer + 3]
-                sub     al, 30h
+                ;sub     al, 30h
                 add     [floatValue], ax
                 ret
 ENDP            Numberify

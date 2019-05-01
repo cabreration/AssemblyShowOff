@@ -35,6 +35,12 @@ anc             DB 'Ancho de la imagen: ', '$'
 mult1000        DW 1000
 mult100         DW 100
 mult10          DW 10 
+mult64          DW 64
+
+; codigo para graphviz a partir de aqui
+graphMeta       DB 'graph familia node[fontsize = 32.0, style=bold, labelloc=b, fontcolor=white]', 59, 10, '$'
+graphMeta1      DB 'edge [style=bold, fontsize=18]', 59, 10, '$'
+dotBuffer       DB 1000 DUP ('$')     
 
 ;structs
 STRUC   Miembro
@@ -68,6 +74,10 @@ arg1            DW 0
 arg2            DW 0
 resultado       DW 0
 operador        DB 0
+grayValue       DW 0
+brightValue     DW 0
+positionState   DB 0        ; del 0 al 7
+colorState      DB 0        ; del 0 al 3
 
 ;variables para la prueba de carga
 header          DB 54 DUP (0)
@@ -275,7 +285,6 @@ PROC            ProcessContent
                 jmp     StartArray
     FinishP:    ret           
 ENDP            ProcessContent
-
 
 PROC            ProcessMember
                 cmp     [currentMember], 50d
@@ -699,20 +708,53 @@ PROC            ShowOriginalImage
                 jne     Reta
                 pop     es
                 ret
-    Reta:       call    ReadHeader
+    Reta:       call    OpenImage
+                call    ReadHeader
                 call    ReadPalette
-                call    CopyPalette
-                call    CopyBitMap
-    Freeze:     mov     ah, 10h
-                int     16h
+                call    NormalPalette
+                call    UpView
+                mov     [positionState], 00h
+                mov     [colorState], 00h
+    Freeze:     mov     ah, 07h
+                int     21h
+                cmp     al, 'M'
+                je      NineRight
+                cmp     al, 'K'
+                je      NineLeft
+                cmp     al, 'H'
+                je      OneEighty
+                cmp     al, 0Bh
+                je      HMirror
+                cmp     al, 'P'
+                je      VMirror
+                cmp     al, 'a'
+                je      Normalize
+                cmp     al, 'g'
+                je      Grayify
+                cmp     al, 'b'
+                je      Brightify
+                cmp     al, 'n'
+                je      Negatify
                 cmp     al, 1Bh
                 je      Unfreeze
-                cmp     al, 103d
-                je      Gray
-                cmp     al, 71d
-                je      Gray
                 jmp     Freeze
-    Gray:       call    GrayPalette
+    NineRight:  call    Ninety
+                jmp     Freeze
+    NineLeft:   call    ANinety
+                jmp     Freeze
+    OneEighty:  call    HalfTwist
+                jmp     Freeze
+    HMirror:    call    HorizontalMirror
+                jmp     Freeze
+    VMirror:    call    VerticalMirror
+                jmp     Freeze
+    Normalize:  call    ApplyNormal
+                jmp     Freeze
+    Grayify:    call    ApplyGray
+                jmp     Freeze
+    Brightify:  call    ApplyBright
+                jmp     Freeze
+    Negatify:   call    ApplyNigga
                 jmp     Freeze
     Unfreeze:   mov     ax, 0003h
                 int     10h
@@ -780,7 +822,7 @@ PROC            ReadPalette
                 ret
 ENDP            ReadPalette
 
-PROC            CopyPalette
+PROC            NormalPalette
                 mov     ax, 13h
                 int     10h
                 mov     ax, 0A000h
@@ -792,9 +834,9 @@ PROC            CopyPalette
 
                 out     dx, al
                 inc     dx
-    PalLoop:    mov     al, [si + 2]        ; el invertido es 255 - [al]
-                shr     al, 1               ; escala de grises se suman los tres colores y se dividen dentro de tres y se mandan 3 outs
-                shr     al, 1               ; sumarle un numero como 100 y verificar que no se pase de 255
+    PalLoop:    mov     al, [si + 2]
+                shr     al, 1               
+                shr     al, 1               
                 out     dx, al
 
                 mov     al, [si + 1]
@@ -810,9 +852,10 @@ PROC            CopyPalette
                 add     si, 4
                 loop    PalLoop
                 ret
-ENDP            CopyPalette
-                
+ENDP            NormalPalette
+
 PROC            GrayPalette
+                mov     [grayValue], 00h
                 mov     ax, 13h
                 int     10h
                 mov     ax, 0A000h
@@ -824,46 +867,138 @@ PROC            GrayPalette
 
                 out     dx, al
                 inc     dx
-    GrayLoop:   mov     ax, [si + 2]        
-                shr     ax, 1               ; escala de grises se suman los tres colores y se dividen dentro de tres y se mandan 3 outs
-                shr     ax, 1
-                mov     bx, [si + 1]
-                shr     bx, 1
-                shr     bx, 1
-                add     ax, bx
-                mov     bx, [si + 2]
-                shr     bx, 1
-                shr     bx, 1
-                add     ax, bx
+    GrayLoop:   mov     al, [si + 2]        
+                shr     al, 1               ; escala de grises se suman los tres colores y se dividen dentro de tres y se mandan 3 outs
+                shr     al, 1
+                mov     [byte grayValue], al
+                mov     al, [si + 1]
+                shr     al, 1
+                shr     al, 1
+                add     [byte grayValue], al
+                mov     al, [si]
+                shr     al, 1
+                shr     al, 1
+                add     [byte grayValue], al
+                mov     ah, 00h
+                mov     ax, [grayValue]
                 mov     bh, 03h 
-                div     bh              
+                div     bh  
+                xor     ah, ah            
                 out     dx, ax
                 out     dx, ax
                 out     dx, ax
 
                 add     si, 4
-                loop    PalLoop
-                call    CopyBitMap
+                loop    GrayLoop
                 ret
 ENDP            GrayPalette
 
-PROC            CopyBitMap
+PROC            BrightPalette
+                mov     [brightValue], 00h
+                mov     ax, 13h
+                int     10h
+                mov     ax, 0A000h
+                mov     es, ax
+                mov     si, offset palette
+                mov     cx, [palSize]
+                mov     dx, 3C8h
+                mov     al, 0
+
+                out     dx, al
+                inc     dx
+    BLoop:      mov     al, [si + 2]        
+                shr     al, 1               
+                shr     al, 1               ; sumarle un numero como 100 y verificar que no se pase de 255
+                mov     [byte brightValue], al
+                add     [brightValue], 50d
+                cmp     [brightValue], 255d
+                jbe     PrintB
+                mov     [brightValue], 255d
+    PrintB:     mov     ah, 00h
+                mov     ax, [brightValue]
+                out     dx, al
+
+                mov     al, [si + 1]
+                shr     al, 1
+                shr     al, 1                
+                mov     [byte brightValue], al
+                add     [brightValue], 50d
+                cmp     [brightValue], 255d
+                jbe     PrintB2
+                mov     [brightValue], 255d
+    PrintB2:    mov     ah, 00h
+                mov     ax, [brightValue]
+                out     dx, al
+
+                mov     al, [si]
+                shr     al, 1
+                shr     al, 1
+                mov     [byte brightValue], al
+                add     [brightValue], 50d
+                cmp     [brightValue], 255d
+                jbe     PrintB3
+                mov     [brightValue], 255d
+    PrintB3:    mov     ah, 00h
+                mov     ax, [brightValue]
+                out     dx, al
+
+                add     si, 4
+                loop    BLoop
+                ret
+ENDP            BrightPalette
+
+PROC            NegativePalette
+                mov     ax, 13h
+                int     10h
+                mov     ax, 0A000h
+                mov     es, ax
+                mov     si, offset palette
+                mov     cx, [palSize]
+                mov     dx, 3C8h
+                mov     al, 0
+
+                out     dx, al
+                inc     dx
+    NLoop:      mov     al, [si + 2]        ; el invertido es 255 - [al]
+                shr     al, 1               
+                shr     al, 1
+                mov     ah, 255d
+                sub     ah, al
+                mov     al, ah               
+                out     dx, al
+
+                mov     al, [si + 1]
+                shr     al, 1
+                shr     al, 1
+                mov     ah, 255d
+                sub     ah, al
+                mov     al, ah                
+                out     dx, al
+
+                mov     al, [si]
+                shr     al, 1
+                shr     al, 1
+                mov     ah, 255d
+                sub     ah, al
+                mov     al, ah
+                out     dx, al
+
+                add     si, 4
+                loop    NLoop
+                ret
+ENDP            NegativePalette
+
+PROC            UpView
                 mov     cx, [fileHeight]
 
     BMPLoop:    push    cx
                 mov     di, cx
-                shl     cx, 1
-                shl     cx, 1
-                shl     cx, 1
-                shl     cx, 1
-                shl     cx, 1
-                shl     cx, 1
-                shl     di, 1
-                shl     di, 1
-                shl     di, 1
-                shl     di, 1
-                shl     di, 1
-                shl     di, 1
+                mov     ax, cx
+                mul     [mult64]
+                mov     cx, ax
+                mov     ax, di
+                mul     [mult64]
+                mov     di, ax
                 shl     di, 1
                 shl     di, 1
                 add     di, cx
@@ -886,7 +1021,614 @@ PROC            CopyBitMap
                 mov     ah, 3Eh
                 int     21h
                 ret
-ENDP            CopyBitMap
+ENDP            UpView
+
+PROC            UpMirrorView
+                mov     cx, [fileHeight]
+
+    HLoop:      push    cx
+                mov     di, cx
+                mov     ax, cx
+                mul     [mult64]
+                mov     cx, ax
+                mov     ax, di
+                mul     [mult64]
+                mov     di, ax
+                shl     di, 1
+                shl     di, 1
+                add     di, cx
+
+                mov     ah, 3Fh
+                mov     cx, [fileWidth]
+                mov     dx, offset scrLine
+                mov     bx, [imageHandle]
+                int     21h
+
+                cld
+
+                mov     cx, [fileWidth]
+                mov     si, offset scrLine
+                add     si, cx
+                push    ax
+                xor     ax, ax
+    InsideL:    movsb
+                sub     si, 02h
+                dec     cx
+                cmp     cx, 00h
+                jne     InsideL
+                pop     ax
+
+                pop     cx
+                loop    HLoop
+
+                mov     ah, 3Eh
+                int     21h
+                ret
+ENDP            UpMirrorView
+
+PROC            DownView
+                mov     cx, 00h
+
+    OELoop:     push    cx
+                mov     di, cx
+                mov     ax, cx
+                mul     [mult64]
+                mov     cx, ax
+                mov     ax, di
+                mul     [mult64]
+                mov     di, ax
+                shl     di, 1
+                shl     di, 1
+                add     di, cx
+
+                mov     ah, 3Fh
+                mov     cx, [fileWidth]
+                mov     dx, offset scrLine
+                mov     bx, [imageHandle]
+                int     21h
+
+                cld
+
+                mov     cx, [fileWidth]
+                mov     si, offset scrLine
+                add     si, cx
+                ;push    ax
+                ;xor     ax, ax
+    InLoop:     movsb
+                sub     si, 02h
+                dec     cx
+                cmp     cx, 00h
+                jne     InLoop
+                ;pop     ax
+
+                pop     cx
+                inc     cx
+                cmp     cx, [fileHeight]
+                jne     OELoop
+
+                mov     ah, 3Eh
+                int     21h
+                ret
+ENDP            DownView
+
+PROC            DownMirrorView
+                mov     cx, 00h
+
+    DMLoop:     push    cx
+                mov     di, cx
+                mov     ax, cx
+                mul     [mult64]
+                mov     cx, ax
+                mov     ax, di
+                mul     [mult64]
+                mov     di, ax
+                shl     di, 1
+                shl     di, 1
+                add     di, cx
+
+                mov     ah, 3Fh
+                mov     cx, [fileWidth]
+                mov     dx, offset scrLine
+                mov     bx, [imageHandle]
+                int     21h
+
+                cld
+
+                mov     cx, [fileWidth]
+                mov     si, offset scrLine
+                rep     movsb
+
+                pop     cx
+                inc     cx
+                cmp     cx, [fileHeight]
+                jne     DMLoop
+
+                mov     ah, 3Eh
+                int     21h
+                ret
+ENDP            DownMirrorView
+
+PROC            RightView
+                mov     cx, 00h
+	RVLoop:     push    cx
+	            mov     di, 0
+	            add     di, cx
+	            mov     ah, 3Fh
+	            mov     bx, [imageHandle]
+	            mov     cx, [fileWidth]
+	            mov     dx, offset scrLine
+	            int     21h
+	            cld
+	            mov     cx, [fileWidth]
+	            mov     si, offset scrLine
+	SecLoop:	movsb
+		        dec     di
+		        add     di, 320
+		        dec     cx
+		        cmp     cx, 00h
+		        jne     SecLoop 
+	            pop cx
+		        inc cx
+		        cmp     cx, [fileHeight]
+		        jne RVLoop
+                ret
+ENDP            RightView
+
+PROC            RightMirrorView
+                ret
+ENDP            RightMirrorView
+
+PROC            LeftView
+                mov     cx, [fileHeight]
+	LVLoop:     push    cx
+	            mov     di, 0
+	            add     di, cx
+	            mov     ah, 3Fh
+	            mov     bx, [imageHandle]
+	            mov     cx, [fileWidth]
+	            mov     dx, offset scrLine
+	            int     21h
+	            cld
+	            mov     si, offset scrLine
+                add     si, cx
+	TecLoop:	movsb
+		        sub     si, 02h
+                dec     di
+		        add     di, 320
+		        dec     cx
+		        cmp     cx, 00h
+		        jne     TecLoop 
+	            pop cx
+		        loop LVLoop
+                ret
+ENDP            LeftView
+
+PROC            LeftMirrorView
+                ret
+ENDP            LeftMirrorView
+
+PROC            Ninety
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+
+                ; decidimos el filtro que queremos en base a la variable anterior
+                cmp     [colorState], 00h   ; normal
+                je      Normal
+                cmp     [colorState], 01h   ; gris
+                je      Gris
+                cmp     [colorState], 02h   ; brillante
+                je      Brillante
+                cmp     [colorState], 03h   ; negativo
+                je      Negativo
+    Normal:     call    NormalPalette
+                jmp     DefPos
+    Gris:       call    GrayPalette
+                jmp     DefPos
+    Brillante:  call    BrightPalette
+                jmp     DefPos
+    Negativo:   call    NegativePalette
+
+                ; decidimos la posicion en base a la variable de posicion
+    DefPos:     cmp     [positionState], 00h
+                je      Right
+                cmp     [positionState], 01h
+                je      Down
+                cmp     [positionState], 02h
+                je      Left
+                cmp     [positionState], 03h
+                je      Up
+                jmp     Close
+    Right:      call    RightView
+                mov     [positionState], 01h
+                jmp     FP
+    Down:       call    DownView
+                mov     [positionState], 02h
+                jmp     FP
+    Left:       call    LeftView
+                mov     [positionState], 03h
+                jmp     FP
+    Up:         call    UpView
+                mov     [positionState], 00h
+                jmp     FP
+    Close:      mov     ah, 3Eh
+                int     21h
+    FP:         ret
+ENDP            Ninety
+
+PROC            ANinety
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+
+                ; decidimos el filtro que queremos en base a la variable anterior
+                cmp     [colorState], 00h   ; normal
+                je      Normal1
+                cmp     [colorState], 01h   ; gris
+                je      Gris1
+                cmp     [colorState], 02h   ; brillante
+                je      Brillante1
+                cmp     [colorState], 03h   ; negativo
+                je      Negativo1
+    Normal1:    call    NormalPalette
+                jmp     DefPos1
+    Gris1:      call    GrayPalette
+                jmp     DefPos1
+    Brillante1: call    BrightPalette
+                jmp     DefPos1
+    Negativo1:  call    NegativePalette
+
+                ; decidimos la posicion en base a la variable de posicion
+    DefPos1:    cmp     [positionState], 00h
+                je      Left1
+                cmp     [positionState], 01h
+                je      Up1
+                cmp     [positionState], 02h
+                je      Right1
+                cmp     [positionState], 03h
+                je      Down1
+                jmp     Close1
+    Right1:     call    RightView
+                mov     [positionState], 01h
+                jmp     FP1
+    Down1:      call    DownView
+                mov     [positionState], 02h
+                jmp     FP1
+    Left1:      call    LeftView
+                mov     [positionState], 03h
+                jmp     FP1
+    Up1:        call    UpView
+                mov     [positionState], 00h
+                jmp     FP1
+    Close1:     mov     ah, 3Eh
+                int     21h
+    FP1:        ret
+ENDP            ANinety
+
+PROC            HalfTwist
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+
+                ; decidimos el filtro que queremos en base a la variable anterior
+                cmp     [colorState], 00h   ; normal
+                je      Normal2
+                cmp     [colorState], 01h   ; gris
+                je      Gris2
+                cmp     [colorState], 02h   ; brillante
+                je      Brillante2
+                cmp     [colorState], 03h   ; negativo
+                je      Negativo2
+    Normal2:    call    NormalPalette
+                jmp     DefPos2
+    Gris2:      call    GrayPalette
+                jmp     DefPos2
+    Brillante2: call    BrightPalette
+                jmp     DefPos2
+    Negativo2:  call    NegativePalette
+
+                ; decidimos la posicion en base a la variable de posicion
+    DefPos2:    cmp     [positionState], 00h
+                je      Down2
+                cmp     [positionState], 01h
+                je      Left2
+                cmp     [positionState], 02h
+                je      Up2
+                cmp     [positionState], 03h
+                je      Right2
+                cmp     [positionState], 04h
+                je      DownM2
+                cmp     [positionState], 06h
+                je      UpM2
+                jmp     Close2
+    Right2:     call    RightView
+                mov     [positionState], 01h
+                jmp     FP2
+    Down2:      call    DownView
+                mov     [positionState], 02h
+                jmp     FP2
+    Left2:      call    LeftView
+                mov     [positionState], 03h
+                jmp     FP2
+    Up2:        call    UpView
+                mov     [positionState], 00h
+                jmp     FP2
+    DownM2:     call    DownMirrorView
+                mov     [positionState], 06h
+                jmp     FP2
+    UpM2:       call    UpMirrorView
+                mov     [positionState], 04h
+                jmp     FP2
+    Close2:     mov     ah, 3Eh
+                int     21h
+    FP2:        ret    
+ENDP            HalfTwist
+
+PROC            HorizontalMirror
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+
+                ; decidimos el filtro que queremos en base a la variable anterior
+                cmp     [colorState], 00h   ; normal
+                je      Normal3
+                cmp     [colorState], 01h   ; gris
+                je      Gris3
+                cmp     [colorState], 02h   ; brillante
+                je      Brillante3
+                cmp     [colorState], 03h   ; negativo
+                je      Negativo3
+    Normal3:    call    NormalPalette
+                jmp     DefPos3
+    Gris3:      call    GrayPalette
+                jmp     DefPos3
+    Brillante3: call    BrightPalette
+                jmp     DefPos3
+    Negativo3:  call    NegativePalette
+
+                ; decidimos la posicion en base a la variable de posicion
+    DefPos3:    cmp     [positionState], 00h
+                je      UpM3
+                cmp     [positionState], 02h
+                je      DownM3
+                cmp     [positionState], 04h
+                je      Up3
+                cmp     [positionState], 06h
+                je      Down3
+                jmp     Close3
+    UpM3:       call    UpMirrorView
+                mov     [positionState], 04h
+                jmp     FP3
+    Down3:      call    DownView
+                mov     [positionState], 02h
+                jmp     FP3
+    DownM3:     call    DownMirrorView
+                mov     [positionState], 06h
+                jmp     FP3
+    Up3:        call    UpView
+                mov     [positionState], 00h
+                jmp     FP3
+    Close3:     mov     ah, 3Eh
+                int     21h
+    FP3:        ret
+ENDP            HorizontalMirror
+
+PROC            VerticalMirror
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+
+                ; decidimos el filtro que queremos en base a la variable anterior
+                cmp     [colorState], 00h   ; normal
+                je      Normal4
+                cmp     [colorState], 01h   ; gris
+                je      Gris4
+                cmp     [colorState], 02h   ; brillante
+                je      Brillante4
+                cmp     [colorState], 03h   ; negativo
+                je      Negativo4
+    Normal4:    call    NormalPalette
+                jmp     DefPos4
+    Gris4:      call    GrayPalette
+                jmp     DefPos4
+    Brillante4: call    BrightPalette
+                jmp     DefPos4
+    Negativo4:  call    NegativePalette
+
+                ; decidimos la posicion en base a la variable de posicion
+    DefPos4:    cmp     [positionState], 00h
+                je      DownM4
+                cmp     [positionState], 02h
+                je      UpM4
+                cmp     [positionState], 04h
+                je      Down4
+                cmp     [positionState], 06h
+                je      Up4
+                jmp     Close4
+    UpM4:       call    UpMirrorView
+                mov     [positionState], 04h
+                jmp     FP4
+    Down4:      call    DownView
+                mov     [positionState], 02h
+                jmp     FP4
+    DownM4:     call    DownMirrorView
+                mov     [positionState], 06h
+                jmp     FP4
+    Up4:        call    UpView
+                mov     [positionState], 00h
+                jmp     FP4
+    Close4:     mov     ah, 3Eh
+                int     21h
+    FP4:        ret
+ENDP            VerticalMirror
+
+PROC            ApplyNormal
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+                call    NormalPalette
+                mov     [colorState], 00h
+
+                ; decidimos la posicion en base a la variable de posicion
+                cmp     [positionState], 00h
+                je      Up5
+                cmp     [positionState], 01h
+                je      Right5
+                cmp     [positionState], 02h
+                je      Down5
+                cmp     [positionState], 03h
+                je      Left5
+                cmp     [positionState], 04h
+                je      UpM5
+                cmp     [positionState], 05h
+                je      RightM5
+                cmp     [positionState], 06h
+                je      DownM5
+                cmp     [positionState], 07h
+                je      LeftM5
+    Up5:        call    UpView
+                jmp     FP5
+    Right5:     call    RightView
+                jmp     FP5
+    Down5:      call    DownView
+                jmp     FP5
+    Left5:      call    LeftView
+                jmp     FP5
+    UpM5:       call    UpMirrorView
+                jmp     FP5
+    DownM5:     call    DownMirrorView
+                jmp     FP5
+    LeftM5:     call    LeftView
+                jmp     FP5
+    RightM5:    call    RightView
+    FP5:        ret
+ENDP            ApplyNormal
+
+PROC            ApplyGray
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+                call    GrayPalette
+                mov     [colorState], 01h
+
+                ; decidimos la posicion en base a la variable de posicion
+                cmp     [positionState], 00h
+                je      Up6
+                cmp     [positionState], 01h
+                je      Right6
+                cmp     [positionState], 02h
+                je      Down6
+                cmp     [positionState], 03h
+                je      Left6
+                cmp     [positionState], 04h
+                je      UpM6
+                cmp     [positionState], 05h
+                je      RightM6
+                cmp     [positionState], 06h
+                je      DownM6
+                cmp     [positionState], 07h
+                je      LeftM6
+    Up6:        call    UpView
+                jmp     FP6
+    Right6:     call    RightView
+                jmp     FP6
+    Down6:      call    DownView
+                jmp     FP6
+    Left6:      call    LeftView
+                jmp     FP6
+    UpM6:       call    UpMirrorView
+                jmp     FP6
+    DownM6:     call    DownMirrorView
+                jmp     FP6
+    LeftM6:     call    LeftView
+                jmp     FP6
+    RightM6:    call    RightView
+    FP6:        ret
+ENDP            ApplyGray
+
+PROC            ApplyBright
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+                call    BrightPalette
+                mov     [colorState], 02h
+
+                ; decidimos la posicion en base a la variable de posicion
+                cmp     [positionState], 00h
+                je      Up7
+                cmp     [positionState], 01h
+                je      Right7
+                cmp     [positionState], 02h
+                je      Down7
+                cmp     [positionState], 03h
+                je      Left7
+                cmp     [positionState], 04h
+                je      UpM7
+                cmp     [positionState], 05h
+                je      RightM7
+                cmp     [positionState], 06h
+                je      DownM7
+                cmp     [positionState], 07h
+                je      LeftM7
+    Up7:        call    UpView
+                jmp     FP7
+    Right7:     call    RightView
+                jmp     FP7
+    Down7:      call    DownView
+                jmp     FP7
+    Left7:      call    LeftView
+                jmp     FP7
+    UpM7:       call    UpMirrorView
+                jmp     FP7
+    DownM7:     call    DownMirrorView
+                jmp     FP7
+    LeftM7:     call    LeftView
+                jmp     FP7
+    RightM7:    call    RightView
+    FP7:        ret
+ENDP            ApplyBright
+
+PROC            ApplyNigga
+                call    OpenImage
+                call    ReadHeader
+                call    ReadPalette
+                call    NegativePalette
+                mov     [colorState], 03h
+
+                ; decidimos la posicion en base a la variable de posicion
+                cmp     [positionState], 00h
+                je      Up8
+                cmp     [positionState], 01h
+                je      Right8
+                cmp     [positionState], 02h
+                je      Down8
+                cmp     [positionState], 03h
+                je      Left8
+                cmp     [positionState], 04h
+                je      UpM8
+                cmp     [positionState], 05h
+                je      RightM8
+                cmp     [positionState], 06h
+                je      DownM8
+                cmp     [positionState], 07h
+                je      LeftM8
+    Up8:        call    UpView
+                jmp     FP8
+    Right8:     call    RightView
+                jmp     FP8
+    Down8:      call    DownView
+                jmp     FP8
+    Left8:      call    LeftView
+                jmp     FP8
+    UpM8:       call    UpMirrorView
+                jmp     FP8
+    DownM8:     call    DownMirrorView
+                jmp     FP8
+    LeftM8:     call    LeftView
+                jmp     FP8
+    RightM8:    call    RightView
+    FP8:        ret
+ENDP            ApplyNigga
 
 PROC            GraphvizMenu
                 ret

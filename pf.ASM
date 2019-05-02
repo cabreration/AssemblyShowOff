@@ -26,7 +26,7 @@ detailS         DB 'detalles'
 showS           DB 'mostrar'
 detailLine      DB 10, 13, '-------------------- Detalles --------------------', 10, 13, '$'
 showLine        DB '-------------------- Mostrars --------------------', 10, 13, '$'
-direccion       DB 'LAMBO.BMP', 0
+;direccion       DB 'LAMBO.BMP', 0
 bytes           DB ' bytes', 10, 13, '$'
 pix             DB ' pixeles', 10, 13, '$'
 tam             DB 'Tamanio de la imagen: ', '$'
@@ -36,11 +36,32 @@ mult1000        DW 1000
 mult100         DW 100
 mult10          DW 10 
 mult64          DW 64
+azul            DB 'blue4$'
+corn            DB 'cornflowerblue$'
+coral           DB 'coral$'
+silk            DB 'cornsilk2$'
+orange          DB 'darkorange$'
+dodger          DB 'dodgerblue4$'
+gold            DB 'gold$'
+gray            DB 'gray$'
+fire            DB 'firebrick4$'
+forest          DB 'forestgreen$'
+wood            DB 'burlywood$'
+sea             DB 'darkseagreen$'
+indian          DB 'indianred$'
+indigo          DB 'indigo$'
+red             DB 'red$'
+created         DB 10, 13, 'El archivo ha sido creado con exito', 10, 13, '$'
 
 ; codigo para graphviz a partir de aqui
-graphMeta       DB 'graph familia node[fontsize = 32.0, style=bold, labelloc=b, fontcolor=white]', 59, 10, '$'
-graphMeta1      DB 'edge [style=bold, fontsize=18]', 59, 10, '$'
-dotBuffer       DB 1000 DUP ('$')     
+graphMeta       DB 'graph familia {', 10, 9, 'node[fontsize = 32.0, style=bold, labelloc=b, fontcolor=white]', 59, 10, '$'
+graphMeta1      DB 'edge [style=bold, fontsize=18]', 59, '$'
+dotBuffer       DB 4000 DUP ('$')
+reportName      DB 'familia.dot', 0 
+printError      DB 10, 13, 'no fue posible crear el archivo, lo siento we, pero ahi esta el debugger para que vean que si funciona$', 10, 13 
+nameBuffer      DB 16 DUP ('$')    
+idValue         DW 0
+idPrintValue    DB '$$$$$'
 
 ;structs
 STRUC   Miembro
@@ -78,6 +99,7 @@ grayValue       DW 0
 brightValue     DW 0
 positionState   DB 0        ; del 0 al 7
 colorState      DB 0        ; del 0 al 3
+vistos          DW 100 DUP(0)
 
 ;variables para la prueba de carga
 header          DB 54 DUP (0)
@@ -89,7 +111,7 @@ fileWidth       DW 0
 fileHeight      DW 0
 fileSize        DB 4 DUP (0)
 
-arbol            Miembro 50 DUP (<>)
+arbol            Miembro 100 DUP (<>)
 
                 CODESEG
 Start:          mov     ax, @data
@@ -270,7 +292,7 @@ PROC            ProcessContent
                 jne     CleanArray
                 inc     di
                 mov     si, 00h
-                cmp     di, 50d
+                cmp     di, 100d
                 je      Filter
                 add     bx, 84d
                 jmp     CleanArray
@@ -287,7 +309,7 @@ PROC            ProcessContent
 ENDP            ProcessContent
 
 PROC            ProcessMember
-                cmp     [currentMember], 50d
+                cmp     [currentMember], 100d
                 je      FinishC
     InitC:      inc     si
                 cmp     [fileBuffer + si], 125d
@@ -594,7 +616,7 @@ PROC            GetImageAddress
     Over:       call    CleanCurrentName
                 cmp     [byte bx + si], 0
                 je      NotDeh
-                cmp     di, 50
+                cmp     di, 100
                 je      NotDeh
     CatName:    mov     ah, [bx + si]
                 mov     [nombreActual + si], ah
@@ -712,7 +734,7 @@ PROC            ShowOriginalImage
                 call    ReadHeader
                 call    ReadPalette
                 call    NormalPalette
-                call    UpView
+                call    UpMirrorView
                 mov     [positionState], 00h
                 mov     [colorState], 00h
     Freeze:     mov     ah, 07h
@@ -1175,6 +1197,29 @@ PROC            RightView
 ENDP            RightView
 
 PROC            RightMirrorView
+                mov     cx, 00h
+	LVMLoop:    push    cx
+	            mov     di, 0
+	            add     di, cx
+	            mov     ah, 3Fh
+	            mov     bx, [imageHandle]
+	            mov     cx, [fileWidth]
+	            mov     dx, offset scrLine
+	            int     21h
+	            cld
+	            mov     si, offset scrLine
+                add     si, cx
+	TecMLoop:   movsb
+		        sub     si, 02h
+                dec     di
+		        add     di, 320
+		        dec     cx
+		        cmp     cx, 00h
+		        jne     TecMLoop 
+	            pop cx
+                inc cx
+		        cmp     cx, [fileHeight]
+                jne     LVMLoop
                 ret
 ENDP            RightMirrorView
 
@@ -1204,6 +1249,28 @@ PROC            LeftView
 ENDP            LeftView
 
 PROC            LeftMirrorView
+                mov     cx, [fileHeight]
+	RVMLoop:    push    cx
+	            mov     di, 0
+	            add     di, cx
+	            mov     ah, 3Fh
+	            mov     bx, [imageHandle]
+	            mov     cx, [fileWidth]
+	            mov     dx, offset scrLine
+	            int     21h
+	            cld
+	            mov     cx, [fileWidth]
+	            mov     si, offset scrLine
+	SecMLoop:   movsb
+		        dec     di
+		        add     di, 320
+		        dec     cx
+		        cmp     cx, 00h
+		        jne     SecMLoop 
+	            pop cx
+		        dec cx
+		        cmp     cx, 00h
+		        jne RVMLoop
                 ret
 ENDP            LeftMirrorView
 
@@ -1238,22 +1305,38 @@ PROC            Ninety
                 je      Left
                 cmp     [positionState], 03h
                 je      Up
-                jmp     Close
+                cmp     [positionState], 04h
+                je      RightM
+                cmp     [positionState], 05h
+                je      DownM
+                cmp     [positionState], 06h
+                je      LeftM
+                cmp     [positionState], 07h
+                je      UpM
     Right:      call    RightView
                 mov     [positionState], 01h
-                jmp     FP
+                ret
     Down:       call    DownView
                 mov     [positionState], 02h
-                jmp     FP
+                ret
     Left:       call    LeftView
                 mov     [positionState], 03h
-                jmp     FP
+                ret
     Up:         call    UpView
                 mov     [positionState], 00h
-                jmp     FP
-    Close:      mov     ah, 3Eh
-                int     21h
-    FP:         ret
+                ret
+    RightM:     call    RightMirrorView
+                mov     [positionState], 05h
+                ret
+    DownM:      call    DownMirrorView
+                mov     [positionState], 06h
+                ret
+    LeftM:      call    LeftMirrorView
+                mov     [positionState], 07h
+                ret
+    UpM:        call    UpMirrorView
+                mov     [positionState], 04h
+                ret
 ENDP            Ninety
 
 PROC            ANinety
@@ -1287,22 +1370,38 @@ PROC            ANinety
                 je      Right1
                 cmp     [positionState], 03h
                 je      Down1
-                jmp     Close1
+                cmp     [positionState], 04h
+                je      LeftM1
+                cmp     [positionState], 05h
+                je      UpM1
+                cmp     [positionState], 06h
+                je      RightM1
+                cmp     [positionState], 07h
+                je      DownM1
     Right1:     call    RightView
                 mov     [positionState], 01h
-                jmp     FP1
+                ret
     Down1:      call    DownView
                 mov     [positionState], 02h
-                jmp     FP1
+                ret
     Left1:      call    LeftView
                 mov     [positionState], 03h
-                jmp     FP1
+                ret
     Up1:        call    UpView
                 mov     [positionState], 00h
-                jmp     FP1
-    Close1:     mov     ah, 3Eh
-                int     21h
-    FP1:        ret
+                ret
+    RightM1:    call    RightMirrorView
+                mov     [positionState], 05h
+                ret
+    DownM1:     call    DownMirrorView
+                mov     [positionState], 06h
+                ret
+    LeftM1:     call    LeftMirrorView
+                mov     [positionState], 07h
+                ret
+    UpM1:       call    UpMirrorView
+                mov     [positionState], 04h
+                ret
 ENDP            ANinety
 
 PROC            HalfTwist
@@ -1340,28 +1439,34 @@ PROC            HalfTwist
                 je      DownM2
                 cmp     [positionState], 06h
                 je      UpM2
-                jmp     Close2
+                cmp     [positionState], 05h
+                je      LeftM2
+                cmp     [positionState], 07h
+                je      RightM2
     Right2:     call    RightView
                 mov     [positionState], 01h
-                jmp     FP2
+                ret
     Down2:      call    DownView
                 mov     [positionState], 02h
-                jmp     FP2
+                ret
     Left2:      call    LeftView
                 mov     [positionState], 03h
-                jmp     FP2
+                ret
     Up2:        call    UpView
                 mov     [positionState], 00h
-                jmp     FP2
+                ret
     DownM2:     call    DownMirrorView
                 mov     [positionState], 06h
-                jmp     FP2
+                ret
     UpM2:       call    UpMirrorView
                 mov     [positionState], 04h
-                jmp     FP2
-    Close2:     mov     ah, 3Eh
-                int     21h
-    FP2:        ret    
+                ret 
+    LeftM2:     call    LeftMirrorView
+                mov     [positionState], 07h
+                ret  
+    RightM2:    call    RightMirrorView
+                mov     [positionState], 05h
+                ret
 ENDP            HalfTwist
 
 PROC            HorizontalMirror
@@ -1395,22 +1500,38 @@ PROC            HorizontalMirror
                 je      Up3
                 cmp     [positionState], 06h
                 je      Down3
-                jmp     Close3
+                cmp     [positionState], 01h
+                je      RightM3
+                cmp     [positionState], 03h
+                je      LeftM3
+                cmp     [positionState], 05h
+                je      Right3
+                cmp     [positionState], 07h
+                je      Left3
     UpM3:       call    UpMirrorView
                 mov     [positionState], 04h
-                jmp     FP3
+                ret
     Down3:      call    DownView
                 mov     [positionState], 02h
-                jmp     FP3
+                ret
     DownM3:     call    DownMirrorView
                 mov     [positionState], 06h
-                jmp     FP3
+                ret
     Up3:        call    UpView
                 mov     [positionState], 00h
-                jmp     FP3
-    Close3:     mov     ah, 3Eh
-                int     21h
-    FP3:        ret
+                ret
+    RightM3:    call    RightMirrorView
+                mov     [positionState], 05h
+                ret
+    LeftM3:     call    LeftMirrorView
+                mov     [positionState], 07h
+                ret            
+    Right3:     call    RightView
+                mov     [positionState], 01h
+                ret
+    Left3:      call    LeftView
+                mov     [positionState], 03h
+                ret
 ENDP            HorizontalMirror
 
 PROC            VerticalMirror
@@ -1444,22 +1565,38 @@ PROC            VerticalMirror
                 je      Down4
                 cmp     [positionState], 06h
                 je      Up4
-                jmp     Close4
+                cmp     [positionState], 01h
+                je      LeftM4
+                cmp     [positionState], 03h
+                je      RightM4
+                cmp     [positionState], 05h
+                je      Left4
+                cmp     [positionState], 07h
+                je      Right4
     UpM4:       call    UpMirrorView
                 mov     [positionState], 04h
-                jmp     FP4
+                ret
     Down4:      call    DownView
                 mov     [positionState], 02h
-                jmp     FP4
+                ret
     DownM4:     call    DownMirrorView
                 mov     [positionState], 06h
-                jmp     FP4
+                ret
     Up4:        call    UpView
                 mov     [positionState], 00h
-                jmp     FP4
-    Close4:     mov     ah, 3Eh
-                int     21h
-    FP4:        ret
+                ret
+    LeftM4:     call    LeftMirrorView
+                mov     [positionState], 07h
+                ret
+    RightM4:    call    RightMirrorView
+                mov     [positionState], 05h
+                ret
+    Left4:      call    LeftView
+                mov     [positionState], 03h
+                ret
+    Right4:     call    RightView
+                mov     [positionState], 01h
+                ret
 ENDP            VerticalMirror
 
 PROC            ApplyNormal
@@ -1498,9 +1635,9 @@ PROC            ApplyNormal
                 jmp     FP5
     DownM5:     call    DownMirrorView
                 jmp     FP5
-    LeftM5:     call    LeftView
+    LeftM5:     call    LeftMirrorView
                 jmp     FP5
-    RightM5:    call    RightView
+    RightM5:    call    RightMirrorView
     FP5:        ret
 ENDP            ApplyNormal
 
@@ -1540,9 +1677,9 @@ PROC            ApplyGray
                 jmp     FP6
     DownM6:     call    DownMirrorView
                 jmp     FP6
-    LeftM6:     call    LeftView
+    LeftM6:     call    LeftMirrorView
                 jmp     FP6
-    RightM6:    call    RightView
+    RightM6:    call    RightMirrorView
     FP6:        ret
 ENDP            ApplyGray
 
@@ -1582,9 +1719,9 @@ PROC            ApplyBright
                 jmp     FP7
     DownM7:     call    DownMirrorView
                 jmp     FP7
-    LeftM7:     call    LeftView
+    LeftM7:     call    LeftMirrorView
                 jmp     FP7
-    RightM7:    call    RightView
+    RightM7:    call    RightMirrorView
     FP7:        ret
 ENDP            ApplyBright
 
@@ -1624,13 +1761,15 @@ PROC            ApplyNigga
                 jmp     FP8
     DownM8:     call    DownMirrorView
                 jmp     FP8
-    LeftM8:     call    LeftView
+    LeftM8:     call    LeftMirrorView
                 jmp     FP8
-    RightM8:    call    RightView
+    RightM8:    call    RightMirrorView
     FP8:        ret
 ENDP            ApplyNigga
 
 PROC            GraphvizMenu
+                call    CreateDot
+                call    WriteDot
                 ret
 ENDP            GraphvizMenu
 
@@ -1781,5 +1920,444 @@ PROC            Numberify
                 add     [floatValue], ax
                 ret
 ENDP            Numberify
+
+PROC            CreateDot
+                mov     si, 00h
+    CDB:        mov     [dotBuffer + si], '$'
+                inc     si
+                cmp     si, 4000d
+                jne     CDB
+                mov     bx, offset arbol
+                mov     di, 0000h           ; esta es para movernos dentro del arbol
+    WMember:    mov     si, 0000h           ; esta es para movernos dentro del dot
+    WName:      cmp     [byte bx + si], 00h      ; si es 00 significa que aqui termina el nombre
+                je      AddLabel
+                mov     ah, [bx + si]
+                mov     [dotBuffer + di], ah
+                inc     si
+                inc     di
+                jmp     WName
+    AddLabel:   mov     [dotBuffer + di], 32d
+                inc     di
+                mov     [dotBuffer + di], '['
+                inc     di
+                mov     [dotBuffer + di], 'l'
+                inc     di
+                mov     [dotBuffer + di], 'a'
+                inc     di
+                mov     [dotBuffer + di], 'b'
+                inc     di
+                mov     [dotBuffer + di], 'e'
+                inc     di
+                mov     [dotBuffer + di], 'l'
+                inc     di
+                mov     [dotBuffer + di], '='
+                inc     di
+                mov     [dotBuffer + di], 34d
+                inc     di
+                mov     si, 00h
+    LName:      cmp     [byte bx + si], 00h      ; si es 00 significa que aqui termina el nombre
+                je      WImage
+                mov     ah, [bx + si]
+                mov     [dotBuffer + di], ah
+                inc     si
+                inc     di
+                jmp     LName
+    MidJump:    jmp     WMember     
+    WImage:     mov     [dotBuffer + di], 34d
+                inc     di
+                mov     [dotBuffer + di], 44d  
+                inc     di
+                mov     [dotBuffer + di], 32d
+                inc     di
+                mov     [dotBuffer + di], 'i'
+                inc     di
+                mov     [dotBuffer + di], 'm'
+                inc     di
+                mov     [dotBuffer + di], 'a'
+                inc     di
+                mov     [dotBuffer + di], 'g'
+                inc     di
+                mov     [dotBuffer + di], 'e'
+                inc     di
+                mov     [dotBuffer + di], '='
+                inc     di
+                mov     [dotBuffer + di], 34d
+                inc     di
+                mov     si, 00h
+                mov     si, 10h
+                jmp     WIT
+    SecMidJump: jmp     MidJump
+    WIT:        mov     ah, [bx + si]
+                mov     [dotBuffer + di], ah
+                inc     di
+                inc     si
+                cmp     [byte bx + si], 46d
+                jne     WIT
+                mov     [dotBuffer + di], 46d
+                inc     di
+                mov     [dotBuffer + di], 'j'
+                inc     di
+                mov     [dotBuffer + di], 'p'
+                inc     di
+                mov     [dotBuffer + di], 'g'
+                inc     di
+                mov     [dotBuffer + di], 34d
+                inc     di
+                mov     [dotBuffer + di], ']'
+                inc     di
+                mov     [dotBuffer + di], 59d
+                inc     di
+                mov     [dotBuffer + di], 10d
+                inc     di
+    NestM:      add     bx, 84d
+                cmp     [byte bx], 00h
+                jne     SecMidJump
+                mov     bx, offset arbol
+                mov     cx, 00h
+    Relations:  call    CleanNameBuffer
+                mov     al, [bx + 80]
+                mov     ah, [bx + 81]
+                mov     [idValue], ax
+                call    CopyNameBuffer
+                push    bx
+                push    cx
+                ; aqui si comparo con cada elemento
+    NComp:      inc     cx
+                cmp     cx, 100d
+                je      TOD
+                add     bx, 84d
+                cmp     [byte bx], 00h
+                je      TOD
+                mov     al, [bx + 80]
+                mov     ah, [bx + 81]
+                cmp     [idValue], ax
+                je      TAC
+                mov     al, [bx + 82]
+                mov     ah, [bx + 83]
+                cmp     [idValue], ax
+                je      TAR
+                jmp     NComp
+    TAC:        call    Stringify
+                call    WriteIdPareja
+                jmp     NComp     
+    TAR:        call    Stringify
+                call    WriteIdHijo
+                jmp     NComp
+    TOD:        pop     cx
+                pop     bx
+                inc     cx
+                add     bx, 84d
+                cmp     cx, 99d
+                je      NoMore
+                cmp     [byte bx], 00h
+                je      NoMore
+                jmp     Relations
+    NoMore:     mov     [dotBuffer  + di], '}'
+                ret
+ENDP            CreateDot
+
+PROC            CleanNameBuffer
+                mov     si, 00h
+    CNB:        mov     [nameBuffer + si], '$'
+                inc     si
+                cmp     si, 16d
+                jne     CNB
+                ret
+ENDP            CleanNameBuffer
+
+PROC            CopyNameBuffer
+                mov     si, 00h
+    SNB:        mov     dh, [bx + si]
+                mov     [nameBuffer + si], dh
+                inc     si
+                cmp     [byte bx + si], 00h
+                jne     SNB
+                ret
+ENDP            CopyNameBuffer
+
+PROC            WriteIdPareja
+                mov     si, 00h
+    CCN:        mov     dh, [nameBuffer + si]
+                mov     [dotBuffer + di], dh
+                inc     di
+                inc     si
+                cmp     si, 16d
+                je      Flecha 
+                cmp     [nameBuffer + si], '$'
+                jne     CCN
+    Flecha:     mov     [dotBuffer + di], 32d
+                inc     di
+                mov     [dotBuffer + di], '-'
+                inc     di
+                mov     [dotBuffer + di], '-'
+                inc     di
+                mov     [dotBuffer + di], 32d
+                ; ahora copio el nombre actual
+                mov     si, 00h
+    CCN2:       mov     dh, [bx + si]
+                mov     [dotBuffer + di], dh
+                inc     di
+                inc     si
+                cmp     si, 16d
+                je      Flecha2
+                cmp     [byte bx + si], 00h
+                jne     CCN2
+    Flecha2:    mov     [dotBuffer + di], 32d
+                inc     di
+                mov     [dotBuffer + di], '['
+                inc     di
+                mov     [dotBuffer + di], 'l'
+                inc     di
+                mov     [dotBuffer + di], 'a'
+                inc     di
+                mov     [dotBuffer + di], 'b'
+                inc     di
+                mov     [dotBuffer + di], 'e'
+                inc     di
+                mov     [dotBuffer + di], 'l'
+                inc     di
+                mov     [dotBuffer + di], '='
+                inc     di
+                mov     [dotBuffer + di], 34d
+                inc     di
+                mov     [dotBuffer + di], 'i'
+                inc     di
+                mov     [dotBuffer + di], 'd'
+                inc     di
+                mov     [dotBuffer + di], 'P'
+                inc     di
+                mov     [dotBuffer + di], 'a'
+                inc     di
+                mov     [dotBuffer + di], 'r'
+                inc     di
+                mov     [dotBuffer + di], 'e'
+                inc     di
+                mov     [dotBuffer + di], 'j'
+                inc     di
+                mov     [dotBuffer + di], 'a'
+                inc     di
+                mov     [dotBuffer + di], 58d
+                inc     di
+                mov     si, 00h
+    CID:        mov     dh, [idPrintValue + si]
+                mov     [dotBuffer + di], dh
+                inc     di
+                inc     si
+                cmp     [idPrintValue + si], '$'
+                jne     CID   
+                mov     [dotBuffer + di], 34d
+                inc     di
+                mov     [dotBuffer + di], ']'
+                inc     di
+                mov     [dotBuffer + di], 59d
+                inc     di
+                mov     [dotBuffer + di], 10d
+                inc     di
+                ret
+ENDP            WriteIdPareja
+
+PROC            WriteIdHijo
+                mov     si, 00h
+    CCN3:       mov     dh, [nameBuffer + si]
+                mov     [dotBuffer + di], dh
+                inc     di
+                inc     si
+                cmp     si, 16d
+                je      Flecha3 
+                cmp     [nameBuffer + si], '$'
+                jne     CCN3
+    Flecha3:    mov     [dotBuffer + di], 32d
+                inc     di
+                mov     [dotBuffer + di], '-'
+                inc     di
+                mov     [dotBuffer + di], '-'
+                inc     di
+                mov     [dotBuffer + di], 32d
+                ; ahora copio el nombre actual
+                mov     si, 00h
+    CCN4:       mov     dh, [bx + si]
+                mov     [dotBuffer + di], dh
+                inc     di
+                inc     si
+                cmp     si, 16d
+                je      Flecha4
+                cmp     [byte bx + si], 00h
+                jne     CCN4
+    Flecha4:    mov     [dotBuffer + di], 32d
+                inc     di
+                mov     [dotBuffer + di], '['
+                inc     di
+                mov     [dotBuffer + di], 'l'
+                inc     di
+                mov     [dotBuffer + di], 'a'
+                inc     di
+                mov     [dotBuffer + di], 'b'
+                inc     di
+                mov     [dotBuffer + di], 'e'
+                inc     di
+                mov     [dotBuffer + di], 'l'
+                inc     di
+                mov     [dotBuffer + di], '='
+                inc     di
+                mov     [dotBuffer + di], 34d
+                inc     di
+                mov     [dotBuffer + di], 'i'
+                inc     di
+                mov     [dotBuffer + di], 'd'
+                inc     di
+                mov     [dotBuffer + di], 'H'
+                inc     di
+                mov     [dotBuffer + di], 'i'
+                inc     di
+                mov     [dotBuffer + di], 'j'
+                inc     di
+                mov     [dotBuffer + di], 'o'
+                inc     di
+                mov     [dotBuffer + di], 58d
+                inc     di
+                mov     si, 00h
+    CID4:       mov     dh, [idPrintValue + si]
+                mov     [dotBuffer + di], dh
+                inc     di
+                inc     si
+                cmp     [idPrintValue + si], '$'
+                jne     CID4   
+                mov     [dotBuffer + di], 34d
+                inc     di
+                mov     [dotBuffer + di], ']'
+                inc     di
+                mov     [dotBuffer + di], 59d
+                inc     di
+                mov     [dotBuffer + di], 10d
+                inc     di
+                ret
+ENDP            WriteIdHijo
+
+PROC            WriteDot
+                mov     dx, offset reportName
+                xor     cx, cx
+                mov     ah, 3Ch
+                int     21h
+                jc      Mistake
+                mov     [handle], ax
+                mov     cx, 1
+                jmp     Block0
+
+    Mistake:    mov     dx, offset printError
+                mov     ah, 09h
+                int     21h
+                ret
+
+    Block0:     mov     si, 00h
+    IteBlock0:  mov     ah, 40h
+                mov     bx, offset graphMeta
+                mov     dl, [byte bx + si]
+                mov     [oneByte], dl
+                mov     dx, offset oneByte
+                mov     bx, [handle]
+                cmp     [oneByte], '$'
+                je      Block1
+                int     21h
+                inc     si
+                jmp     IteBlock0
+    Block1:     mov     si, 00h
+    IteBlock1:  mov     ah, 40h
+                mov     bx, offset graphMeta1
+                mov     dl, [byte bx + si]
+                mov     [oneByte], dl
+                mov     dx, offset oneByte
+                mov     bx, [handle]
+                cmp     [oneByte], '$'
+                je      Block2
+                int     21h
+                inc     si
+                jmp     IteBlock1
+    Block2:     mov     si, 00h
+    IteBlock2:  mov     ah, 40h
+                mov     bx, offset dotBuffer
+                mov     dl, [byte bx + si]
+                mov     [oneByte], dl
+                mov     dx, offset oneByte
+                mov     bx, [handle]
+                cmp     [oneByte], '$'
+                je      SaveFile
+                int     21h
+                inc     si
+                jmp     IteBlock2
+    
+    SaveFile:   mov     ah, 3Eh
+                int     21h
+                mov     ah, 09h
+                mov     dx, offset created
+                int     21h
+                ret
+ENDP            WriteDot
+
+PROC            Stringify
+                mov     [idPrintValue], '$'
+                mov     [idPrintValue + 1], '$'
+                mov     [idPrintValue + 2], '$'
+                mov     [idPrintValue + 3], '$'
+                mov     [idPrintValue + 4], '$'
+                push    ax
+                push    cx
+                xor     cx, cx
+                mov     ch, 10d
+                cmp     [idValue], 10d
+                jb      One
+                cmp     [idValue], 100d
+                jb      Two
+                cmp     [idValue], 1000d
+                jb      Three
+    Four:       xor     ax, ax
+                mov     ax, [idValue]
+                div     ch
+                add     ah, 48d
+                mov     [idPrintValue + 4], ah
+                xor     ah, ah
+                div     ch
+                add     ah, 48d
+                mov     [idPrintValue + 3], ah
+                xor     ah, ah
+                div     ch
+                add     ah, 48d
+                mov     [idPrintValue + 1], ah
+                add     al, 48d
+                mov     [idPrintValue], al
+                mov     [idPrintValue + 2], 46d
+                jmp     FinSt
+    One:        mov     [idPrintValue], 48d
+                mov     [idPrintValue + 1], 46d
+                add     [idValue], 48d
+                mov     cx, [idValue]
+                mov     [idPrintValue + 2], cl
+                jmp     FinSt
+    Two:        xor     ax, ax
+                mov     ax, [idValue]
+                div     ch
+                add     ah, 48d
+                add     al, 48d
+                mov     [idPrintValue], 48d
+                mov     [idPrintValue + 1], 46d
+                mov     [idPrintValue + 2], al
+                mov     [idPrintValue + 3], ah
+                jmp     FinSt
+    Three:      xor     ax, ax
+                mov     ax, [idValue]
+                div     ch
+                add     ah, 48d
+                mov     [idPrintValue + 3], ah
+                xor     ah, ah
+                div     ch
+                add     ah, 48d
+                add     al, 48d
+                mov     [idPrintValue + 2], ah
+                mov     [idPrintValue + 1], 46d
+                mov     [idPrintValue], al
+    FinSt:      pop     cx
+                pop     ax
+                ret
+ENDP            Stringify
 
                 END Start
